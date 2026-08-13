@@ -1,0 +1,46 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Shopify\Mappers\ShopifyInventoryItemMapper;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Shopify\ShopifyInventoryService;
+use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaInventoryMapper;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+use Tracezilla\Shopify\Tracezilla\TracezillaInventoryService;
+use Tracezilla\Shopify\Workflows\SynchronizeInventory;
+use Tracezilla\Shopify\Workflows\TracezillaInventoryToShopifyQuantityMapper;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $options = getopt('', ['shopify-location:', 'tracezilla-warehouse:', 'limit::', 'execute', 'confirm', 'json']);
+    $location = trim((string) ($options['shopify-location'] ?? ''));
+    $warehouse = filter_var($options['tracezilla-warehouse'] ?? null, FILTER_VALIDATE_INT);
+    $limit = array_key_exists('limit', $options) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
+    $execute = array_key_exists('execute', $options);
+    if ($location === '' || $warehouse === false || $warehouse < 1) throw new InvalidArgumentException('Provide --shopify-location=gid://... and a positive --tracezilla-warehouse=N.');
+    if ($limit === false || $limit < 1) throw new InvalidArgumentException('The --limit option must be a positive integer.');
+    if ($execute && ! array_key_exists('confirm', $options)) throw new InvalidArgumentException('Execution requires both --execute and --confirm.');
+
+    $configuration = Configuration::fromEnvironment();
+    $result = (new SynchronizeInventory(
+        new TracezillaInventoryService(new TracezillaClient($configuration), new TracezillaInventoryMapper),
+        new ShopifyInventoryService(new ShopifyClient($configuration), new ShopifyInventoryItemMapper),
+        new TracezillaInventoryToShopifyQuantityMapper,
+    ))->run($location, (int) $warehouse, ! $execute, (int) $limit);
+    $payload = $result->toArray();
+    if (array_key_exists('json', $options)) echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
+    else {
+        echo ($execute ? 'EXECUTE: changed quantities were written to Shopify.' : 'DRY RUN: no Shopify inventory was changed.').PHP_EOL;
+        foreach ($payload['items'] as $item) echo sprintf("[%s] %s: %s\n", strtoupper($item['status']), $item['sku'], $item['message']);
+        $s = $payload['summary']; echo sprintf("\nUpdated: %d, would update: %d, unchanged: %d, skipped: %d, failed: %d\n", $s['updated'], $s['would_update'], $s['unchanged'], $s['skipped'], $s['failed']);
+    }
+    exit($result->hasFailures() ? 1 : 0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Inventory synchronization failed: '.$exception->getMessage().PHP_EOL); exit(1);
+}

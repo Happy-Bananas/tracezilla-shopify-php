@@ -103,6 +103,30 @@ docker compose run --rm php php bin/list-shopify-locations --json
 The command is read-only and requires the Shopify `read_locations` scope. Use
 the returned GraphQL location ID when adapting an inventory workflow.
 
+## Synchronize Shopify inventory from tracezilla
+
+First retrieve the Shopify location ID with `list-shopify-locations`. Then run a
+bounded preview using the corresponding tracezilla warehouse location number:
+
+```bash
+docker compose run --rm php php bin/synchronize-inventory \
+  --shopify-location=gid://shopify/Location/123 \
+  --tracezilla-warehouse=2 \
+  --limit=10
+```
+
+Writes require both explicit safety flags:
+
+```bash
+docker compose run --rm php php bin/synchronize-inventory \
+  --shopify-location=gid://shopify/Location/123 \
+  --tracezilla-warehouse=2 \
+  --execute --confirm --limit=1
+```
+
+Review `TracezillaInventoryToShopifyQuantityMapper` before execution. Its unit
+conversion rule is an example business mapping, not a universal default.
+
 ## Design
 
 The example deliberately separates responsibilities:
