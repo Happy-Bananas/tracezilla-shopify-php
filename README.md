@@ -4,6 +4,13 @@ Framework-neutral PHP templates for integrating Shopify with the tracezilla
 API. The first example is a read-only catalog comparison using SKU code as the
 shared identifier.
 
+Clone the repository before following the commands below:
+
+```bash
+git clone https://github.com/Happy-Bananas/tracezilla-shopify-php.git
+cd tracezilla-shopify-php
+```
+
 ## Hello World: Compare Catalogs
 
 The command paginates Shopify variants and tracezilla SKUs, normalizes both
