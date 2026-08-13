@@ -86,6 +86,23 @@ Review `ShopifyVariantToTracezillaSkuMapper` before execution. Its `pcs`,
 `colli`, weight, and conversion values are example business assumptions that
 must be adapted to the customer.
 
+## List Shopify locations
+
+List every location visible to the configured Shopify app:
+
+```bash
+docker compose run --rm php php bin/list-shopify-locations
+```
+
+Return the complete structured result as JSON:
+
+```bash
+docker compose run --rm php php bin/list-shopify-locations --json
+```
+
+The command is read-only and requires the Shopify `read_locations` scope. Use
+the returned GraphQL location ID when adapting an inventory workflow.
+
 ## Design
 
 The example deliberately separates responsibilities:

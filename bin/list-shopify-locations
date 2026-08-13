@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Output\LocationTableRenderer;
+use Tracezilla\Shopify\Shopify\Mappers\ShopifyLocationMapper;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Shopify\ShopifyLocationService;
+use Tracezilla\Shopify\Workflows\ListShopifyLocations;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $options = getopt('', ['json']);
+    $configuration = Configuration::fromEnvironment();
+    $service = new ShopifyLocationService(new ShopifyClient($configuration), new ShopifyLocationMapper());
+    $result = (new ListShopifyLocations($service))->run();
+
+    if (array_key_exists('json', $options)) {
+        echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
+    } else {
+        echo (new LocationTableRenderer())->render($result);
+        if ($result['count'] === 0) {
+            echo "No Shopify locations are available to this app.\n";
+        }
+    }
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Location listing failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}
