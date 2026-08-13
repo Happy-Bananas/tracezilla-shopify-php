@@ -1,0 +1,49 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Output\SkuCreationRenderer;
+use Tracezilla\Shopify\Shopify\Mappers\ShopifyVariantMapper;
+use Tracezilla\Shopify\Shopify\ShopifyCatalogService;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyVariantToTracezillaSkuMapper;
+use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaSkuMapper;
+use Tracezilla\Shopify\Tracezilla\TracezillaCatalogService;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+use Tracezilla\Shopify\Workflows\CreateTracezillaSkus;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $options = getopt('', ['execute', 'confirm', 'limit::', 'json']);
+    $limit = isset($options['limit']) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
+    if ($limit === false || $limit < 1) {
+        throw new InvalidArgumentException('--limit must be a positive integer.');
+    }
+
+    $execute = array_key_exists('execute', $options);
+    if ($execute && ! array_key_exists('confirm', $options)) {
+        throw new InvalidArgumentException('Execution requires both --execute and --confirm. Run without them for a dry run.');
+    }
+
+    $configuration = Configuration::fromEnvironment();
+    $shopify = new ShopifyCatalogService(new ShopifyClient($configuration), new ShopifyVariantMapper());
+    $tracezilla = new TracezillaCatalogService(new TracezillaClient($configuration), new TracezillaSkuMapper());
+    $result = (new CreateTracezillaSkus(
+        $shopify,
+        $tracezilla,
+        new ShopifyVariantToTracezillaSkuMapper(),
+    ))->run(dryRun: ! $execute, limit: $limit);
+
+    echo array_key_exists('json', $options)
+        ? json_encode($result->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL
+        : (new SkuCreationRenderer())->render($result);
+    exit($result->hasFailures() ? 1 : 0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'SKU creation failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

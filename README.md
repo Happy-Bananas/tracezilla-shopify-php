@@ -1,8 +1,8 @@
 # tracezilla-shopify-php
 
 Framework-neutral PHP templates for integrating Shopify with the tracezilla
-API. The first example is a read-only catalog comparison using SKU code as the
-shared identifier.
+API. The examples compare catalogs and safely preview or create missing
+tracezilla SKUs from Shopify variants.
 
 Clone the repository before following the commands below:
 
@@ -64,6 +64,28 @@ docker compose run --rm php composer test
 
 Tests use in-memory inputs and do not contact Shopify or tracezilla.
 
+## Create missing tracezilla SKUs
+
+Preview at most ten Shopify variants without writing anything:
+
+```bash
+docker compose run --rm php php bin/create-tracezilla-skus
+```
+
+The result reports records that would be created, already exist, are duplicate,
+have no Shopify SKU, or failed. Change the processing limit with `--limit=25`
+or add `--json` for structured output.
+
+Execution requires two explicit flags:
+
+```bash
+docker compose run --rm php php bin/create-tracezilla-skus --execute --confirm --limit=1
+```
+
+Review `ShopifyVariantToTracezillaSkuMapper` before execution. Its `pcs`,
+`colli`, weight, and conversion values are example business assumptions that
+must be adapted to the customer.
+
 ## Design
 
 The example deliberately separates responsibilities:
@@ -78,8 +100,8 @@ tracezilla API -> tracezilla client -> catalog service -> mapper+
 - API clients own authentication and HTTP transport.
 - Catalog services own retrieval and pagination boundaries.
 - Mappers convert vendor responses into the shared `CatalogItem` model.
-- `CompareCatalogs` contains only the comparison rule.
-- `bin/compare-catalogs` assembles dependencies and renders output.
+- Workflow classes contain comparison or creation rules.
+- Files in `bin/` assemble dependencies and render output.
 
 The classes use ordinary PHP and Composer—no Laravel, Symfony, or other
 application framework. They can be wrapped by a framework command, controller,
@@ -95,7 +117,7 @@ experiments.
 - Never commit `.env`; it is ignored by Git.
 - Use a development store and test tracezilla team first.
 - Do not print tokens or client secrets in logs or error reports.
-- Keep Shopify scopes minimal; this example only needs `read_products`.
+- Keep Shopify scopes minimal; the current examples only need `read_products`.
 
 Canonical setup and safety guidance lives in the
 [Tracezilla Integrations documentation](https://happy-bananas.github.io/tracezilla-integrations-docs/).

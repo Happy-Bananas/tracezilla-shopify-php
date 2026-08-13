@@ -6,9 +6,10 @@ namespace Tracezilla\Shopify\Tracezilla;
 
 use RuntimeException;
 use Tracezilla\Shopify\Contracts\CatalogReader;
+use Tracezilla\Shopify\Contracts\TracezillaSkuGateway;
 use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaSkuMapper;
 
-final readonly class TracezillaCatalogService implements CatalogReader
+final readonly class TracezillaCatalogService implements CatalogReader, TracezillaSkuGateway
 {
     public function __construct(private TracezillaClient $client, private TracezillaSkuMapper $mapper) {}
 
@@ -52,5 +53,18 @@ final readonly class TracezillaCatalogService implements CatalogReader
         } while (true);
 
         return $items;
+    }
+
+    public function existingSkuCodes(): array
+    {
+        return array_values(array_unique(array_map(
+            static fn ($item): string => $item->sku,
+            $this->read(),
+        )));
+    }
+
+    public function createSku(TracezillaSkuData $sku): array
+    {
+        return $this->client->post('/skus', $sku->toApiPayload());
     }
 }

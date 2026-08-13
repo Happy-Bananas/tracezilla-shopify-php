@@ -6,16 +6,30 @@ namespace Tracezilla\Shopify\Shopify;
 
 use RuntimeException;
 use Tracezilla\Shopify\Contracts\CatalogReader;
+use Tracezilla\Shopify\Contracts\ShopifyVariantReader;
 use Tracezilla\Shopify\Shopify\Mappers\ShopifyVariantMapper;
 use Tracezilla\Shopify\Shopify\Queries\GetProductVariants;
 
-final readonly class ShopifyCatalogService implements CatalogReader
+final readonly class ShopifyCatalogService implements CatalogReader, ShopifyVariantReader
 {
     public function __construct(private ShopifyClient $client, private ShopifyVariantMapper $mapper) {}
 
     public function read(): array
     {
         $items = [];
+        foreach ($this->readVariants() as $variant) {
+            $item = $this->mapper->map($variant);
+            if ($item !== null) {
+                $items[] = $item;
+            }
+        }
+
+        return $items;
+    }
+
+    public function readVariants(): array
+    {
+        $variants = [];
         $after = null;
 
         do {
@@ -29,16 +43,13 @@ final readonly class ShopifyCatalogService implements CatalogReader
                 if (! is_array($variant)) {
                     continue;
                 }
-                $item = $this->mapper->map($variant);
-                if ($item !== null) {
-                    $items[] = $item;
-                }
+                $variants[] = ShopifyVariantData::fromApiResponse($variant);
             }
 
             $hasNextPage = ($connection['pageInfo']['hasNextPage'] ?? false) === true;
             $after = $connection['pageInfo']['endCursor'] ?? null;
         } while ($hasNextPage && is_string($after) && $after !== '');
 
-        return $items;
+        return $variants;
     }
 }
