@@ -32,4 +32,10 @@ final class TracezillaClient
         $response = $this->http->post(ltrim($path, '/'), ['json' => $payload]);
         return json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
     }
+
+    public function put(string $path, array $payload): array
+    {
+        $response = $this->http->put(ltrim($path, '/'), ['json' => $payload]);
+        return json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
+    }
 }

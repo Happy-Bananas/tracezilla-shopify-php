@@ -15,7 +15,23 @@ final class GetOrders
               name
               createdAt
               cancelledAt
+              email
+              phone
+              note
+              poNumber
               currencyCode
+              shippingAddress {
+                name
+                company
+                address1
+                address2
+                zip
+                city
+                province
+                provinceCode
+                countryCodeV2
+                phone
+              }
               lineItems(first: 250) {
                 nodes {
                   sku

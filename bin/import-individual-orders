@@ -1,0 +1,93 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Output\CommandExecution;
+use Tracezilla\Shopify\Output\IndividualOrderImportRenderer;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Shopify\ShopifyOrderService;
+use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyOrderToTracezillaSalesOrderMapper;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+use Tracezilla\Shopify\Tracezilla\TracezillaSalesOrderService;
+use Tracezilla\Shopify\Workflows\ImportIndividualOrders;
+use Tracezilla\Shopify\Workflows\ImportIndividualOrdersOptions;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $arguments = getopt('', [
+        'customer:',
+        'warehouse:',
+        'days::',
+        'limit::',
+        'execute',
+        'confirm',
+        'json',
+    ]);
+    $customer = is_string($arguments['customer'] ?? null)
+        ? trim($arguments['customer'])
+        : '';
+    $warehouse = filter_var($arguments['warehouse'] ?? null, FILTER_VALIDATE_INT);
+    $days = filter_var($arguments['days'] ?? 3, FILTER_VALIDATE_INT);
+    $limit = filter_var($arguments['limit'] ?? 10, FILTER_VALIDATE_INT);
+    if ($customer === '') {
+        throw new InvalidArgumentException('--customer is required.');
+    }
+    if ($warehouse === false || $warehouse < 1) {
+        throw new InvalidArgumentException('--warehouse must be a positive integer.');
+    }
+    if ($days === false || $days < 1) {
+        throw new InvalidArgumentException('--days must be a positive integer.');
+    }
+    if ($limit === false || $limit < 1) {
+        throw new InvalidArgumentException('--limit must be a positive integer.');
+    }
+
+    $execute = array_key_exists('execute', $arguments);
+    $confirm = array_key_exists('confirm', $arguments);
+    if ($execute !== $confirm) {
+        throw new InvalidArgumentException(
+            'Execution requires both --execute and --confirm. Run without either flag for a dry run.'
+        );
+    }
+
+    $displayedCommand = sprintf(
+        'php bin/import-individual-orders --customer=%s --warehouse=%d --days=%d --limit=%d',
+        escapeshellarg($customer),
+        $warehouse,
+        $days,
+        $limit,
+    );
+    if ($execute) {
+        $displayedCommand .= ' --execute --confirm';
+    }
+    if (array_key_exists('json', $arguments)) {
+        $displayedCommand .= ' --json';
+    }
+    $execution = new CommandExecution($displayedCommand, $execute ? 'execute' : 'dry_run');
+
+    $configuration = Configuration::fromEnvironment();
+    $result = (new ImportIndividualOrders(
+        new ShopifyOrderService(new ShopifyClient($configuration)),
+        new TracezillaSalesOrderService(new TracezillaClient($configuration)),
+        new ShopifyOrderToTracezillaSalesOrderMapper(),
+    ))->run(new ImportIndividualOrdersOptions(
+        customerName: $customer,
+        warehouseLocationNumber: $warehouse,
+        dryRun: ! $execute,
+        days: $days,
+        limit: $limit,
+    ));
+
+    echo array_key_exists('json', $arguments)
+        ? json_encode($execution->withResult($result->toArray()), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL
+        : $execution->header().(new IndividualOrderImportRenderer())->render($result);
+    exit($result->hasFailures() ? 1 : 0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Individual-order import failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

@@ -18,6 +18,11 @@ final readonly class ShopifyOrderData
         public string $currency,
         public array $lines,
         public bool $hasMoreLines,
+        public ?string $email = null,
+        public ?string $phone = null,
+        public ?string $note = null,
+        public ?string $purchaseOrderNumber = null,
+        public ?array $shippingAddress = null,
     ) {}
 
     public static function fromApiResponse(array $order): self
@@ -40,6 +45,13 @@ final readonly class ShopifyOrderData
                 $order['lineItems']['nodes'] ?? [],
             ),
             hasMoreLines: (bool) ($order['lineItems']['pageInfo']['hasNextPage'] ?? false),
+            email: self::nullableString($order['email'] ?? null),
+            phone: self::nullableString($order['phone'] ?? null),
+            note: self::nullableString($order['note'] ?? null),
+            purchaseOrderNumber: self::nullableString($order['poNumber'] ?? null),
+            shippingAddress: is_array($order['shippingAddress'] ?? null)
+                ? $order['shippingAddress']
+                : null,
         );
     }
 

@@ -148,6 +148,36 @@ Add `--json` for structured output suitable for logs or another program. The
 command never writes to Shopify or tracezilla. Cancelled orders, orders whose
 line-item connection is truncated, and unusable lines are reported as skipped.
 
+## Import individual Shopify orders
+
+Preview at most ten recent Shopify orders as individual tracezilla sales
+orders. The tracezilla customer name and warehouse location number are explicit
+so the business relationship is visible whenever the command runs:
+
+```bash
+docker compose run --rm php php bin/import-individual-orders \
+  --customer='Banana primary webshop' \
+  --warehouse=2 \
+  --days=3 \
+  --limit=10
+```
+
+The command is a dry run by default. After reviewing the mapping and output,
+one bounded sandbox write requires both safety flags:
+
+```bash
+docker compose run --rm php php bin/import-individual-orders \
+  --customer='Banana primary webshop' \
+  --warehouse=2 \
+  --days=3 \
+  --limit=1 \
+  --execute --confirm
+```
+
+The example supports DKK, prefixes external references with `SHP`, rejects
+partial orders, and uses a visible example partner/address mapping. Adapt these
+rules to the customer before execution. Add `--json` for structured output.
+
 ## Design
 
 The example deliberately separates responsibilities:
@@ -179,7 +209,9 @@ experiments.
 - Never commit `.env`; it is ignored by Git.
 - Use a development store and test tracezilla team first.
 - Do not print tokens or client secrets in logs or error reports.
-- Keep Shopify scopes minimal; the current examples only need `read_products`.
+- Keep Shopify scopes minimal. Commands currently use `read_products`,
+  `read_locations`, `read_inventory`, `write_inventory`, and `read_orders`
+  according to the workflows being run.
 
 Canonical setup and safety guidance lives in the
 [Tracezilla Integrations documentation](https://happy-bananas.github.io/tracezilla-integrations-docs/).
