@@ -1,0 +1,45 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Output\CollectedOrderReportRenderer;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Shopify\ShopifyOrderService;
+use Tracezilla\Shopify\Workflows\BuildCollectedOrderReport;
+use Tracezilla\Shopify\Workflows\CollectedOrderReportOptions;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $arguments = getopt('', ['days::', 'timezone::', 'limit::', 'json']);
+    $days = filter_var($arguments['days'] ?? 3, FILTER_VALIDATE_INT);
+    $limit = filter_var($arguments['limit'] ?? 10, FILTER_VALIDATE_INT);
+    if ($days === false || $days < 1) {
+        throw new InvalidArgumentException('--days must be a positive integer.');
+    }
+    if ($limit === false || $limit < 1) {
+        throw new InvalidArgumentException('--limit must be a positive integer.');
+    }
+
+    $configuration = Configuration::fromEnvironment();
+    $workflow = new BuildCollectedOrderReport(
+        new ShopifyOrderService(new ShopifyClient($configuration)),
+    );
+    $result = $workflow->run(new CollectedOrderReportOptions(
+        days: $days,
+        timezone: (string) ($arguments['timezone'] ?? 'UTC'),
+        limit: $limit,
+    ));
+
+    echo array_key_exists('json', $arguments)
+        ? json_encode($result->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL
+        : (new CollectedOrderReportRenderer())->render($result);
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Collected-order report failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

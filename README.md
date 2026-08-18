@@ -127,6 +127,27 @@ docker compose run --rm php php bin/synchronize-inventory \
 Review `TracezillaInventoryToShopifyQuantityMapper` before execution. Its unit
 conversion rule is an example business mapping, not a universal default.
 
+## Report collected Shopify orders
+
+Build a read-only sales report from orders created during the last three days.
+Lines are grouped by business date, currency, and SKU:
+
+```bash
+docker compose run --rm php php bin/report-collected-orders \
+  --days=3 --timezone=Europe/Copenhagen --limit=10
+```
+
+Run the same command without Docker after installing Composer dependencies:
+
+```bash
+php bin/report-collected-orders \
+  --days=3 --timezone=Europe/Copenhagen --limit=10
+```
+
+Add `--json` for structured output suitable for logs or another program. The
+command never writes to Shopify or tracezilla. Cancelled orders, orders whose
+line-item connection is truncated, and unusable lines are reported as skipped.
+
 ## Design
 
 The example deliberately separates responsibilities:
