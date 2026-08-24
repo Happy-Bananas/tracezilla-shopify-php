@@ -11,6 +11,12 @@ use RuntimeException;
 use Tracezilla\Shopify\Contracts\ShopifyOrderReader;
 use Tracezilla\Shopify\Contracts\TracezillaSalesOrderGateway;
 use Tracezilla\Shopify\Output\IndividualOrderImportRenderer;
+use Tracezilla\Shopify\Retry\FailureCategory;
+use Tracezilla\Shopify\Retry\IntegrationFailure;
+use Tracezilla\Shopify\Retry\RetryRepository;
+use Tracezilla\Shopify\Retry\RetryStatus;
+use Tracezilla\Shopify\Retry\RetryTask;
+use Tracezilla\Shopify\Retry\TaskIdentity;
 use Tracezilla\Shopify\Shopify\ShopifyOrderData;
 use Tracezilla\Shopify\Shopify\ShopifyOrderLineData;
 use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyOrderToTracezillaSalesOrderMapper;
@@ -68,6 +74,110 @@ final class IndividualOrderImportTest extends TestCase
         self::assertTrue($result->hasFailures());
     }
 
+    public function test_execution_persists_rejected_writes_for_retry(): void
+    {
+        $gateway = new FakeSalesOrderGateway([], ['SHP1001']);
+        $retries = new RecordingRetryRepository();
+
+        $this->workflow(new FakeIndividualOrderReader([self::order('1001')]), $gateway, $retries)->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertSame('1001', $retries->recordedIdentity?->externalId);
+        self::assertSame(FailureCategory::Unexpected, $retries->recordedFailure?->category);
+        self::assertSame('tracezilla_order_creation_failed', $retries->recordedFailure?->code);
+    }
+
+    public function test_execution_sends_invalid_business_data_to_attention(): void
+    {
+        $retries = new RecordingRetryRepository();
+        $invalid = self::order('1001', lines: [new ShopifyOrderLineData('', 1, '10.00', 'DKK')]);
+
+        $this->workflow(new FakeIndividualOrderReader([$invalid]), new FakeSalesOrderGateway([]), $retries)->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertSame(FailureCategory::Business, $retries->recordedFailure?->category);
+        self::assertSame('invalid_order', $retries->recordedFailure?->code);
+    }
+
+    public function test_existing_destination_reference_resolves_a_previous_retry(): void
+    {
+        $retries = new RecordingRetryRepository();
+        $retries->existing = RecordingRetryRepository::task('1001');
+
+        $this->workflow(
+            new FakeIndividualOrderReader([self::order('1001')]),
+            new FakeSalesOrderGateway(['SHP1001' => true]),
+            $retries,
+        )->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertSame('1001', $retries->resolved?->identity->externalId);
+    }
+
+    public function test_cron_reconciliation_respects_retry_backoff(): void
+    {
+        $retries = new RecordingRetryRepository();
+        $now = new DateTimeImmutable('2026-08-18T12:00:00Z');
+        $retries->existing = new RetryTask(
+            new TaskIdentity('orders:import-individual', 'shopify', '1001'),
+            RetryStatus::Pending,
+            2,
+            $now->modify('-10 minutes'),
+            $now->modify('-5 minutes'),
+            $now->modify('+10 minutes'),
+            new IntegrationFailure('timeout', FailureCategory::Temporary, 'Timeout'),
+        );
+        $gateway = new FakeSalesOrderGateway([]);
+
+        $result = $this->workflow(
+            new FakeIndividualOrderReader([self::order('1001')]),
+            $gateway,
+            $retries,
+        )->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            $now,
+        );
+
+        self::assertSame(0, $gateway->writeCount);
+        self::assertSame(1, $result->toArray()['summary']['skipped_count']);
+        self::assertStringContainsString('retry is scheduled', $result->toArray()['items'][0]['message']);
+    }
+
+    public function test_cron_reconciliation_does_not_automatically_retry_attention_tasks(): void
+    {
+        $retries = new RecordingRetryRepository();
+        $task = RecordingRetryRepository::task('1001');
+        $retries->existing = new RetryTask(
+            $task->identity,
+            RetryStatus::Attention,
+            $task->attempts,
+            $task->firstFailedAt,
+            $task->lastFailedAt,
+            null,
+            $task->lastError,
+            'maximum_attempts_reached',
+        );
+        $gateway = new FakeSalesOrderGateway([]);
+
+        $result = $this->workflow(
+            new FakeIndividualOrderReader([self::order('1001')]),
+            $gateway,
+            $retries,
+        )->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertSame(0, $gateway->writeCount);
+        self::assertStringContainsString('requires attention', $result->toArray()['items'][0]['message']);
+    }
+
     public function test_empty_source_does_not_resolve_tracezilla_context(): void
     {
         $gateway = new FakeSalesOrderGateway([]);
@@ -122,11 +232,13 @@ final class IndividualOrderImportTest extends TestCase
     private function workflow(
         ShopifyOrderReader $reader,
         TracezillaSalesOrderGateway $gateway,
+        ?RetryRepository $retries = null,
     ): ImportIndividualOrders {
         return new ImportIndividualOrders(
             $reader,
             $gateway,
             new ShopifyOrderToTracezillaSalesOrderMapper(),
+            $retries,
         );
     }
 
@@ -156,6 +268,52 @@ final class IndividualOrderImportTest extends TestCase
                 'city' => 'Copenhagen',
                 'countryCodeV2' => 'DK',
             ],
+        );
+    }
+}
+
+final class RecordingRetryRepository implements RetryRepository
+{
+    public ?TaskIdentity $recordedIdentity = null;
+    public ?IntegrationFailure $recordedFailure = null;
+    public ?RetryTask $existing = null;
+    public ?RetryTask $resolved = null;
+
+    public function recordFailure(TaskIdentity $identity, IntegrationFailure $failure, DateTimeImmutable $now): RetryTask
+    {
+        $this->recordedIdentity = $identity;
+        $this->recordedFailure = $failure;
+        return self::task($identity->externalId, $failure, $now);
+    }
+
+    public function due(DateTimeImmutable $now, int $limit): array { return []; }
+    public function pending(): array { return $this->existing === null ? [] : [$this->existing]; }
+    public function attention(): array { return []; }
+
+    public function find(string $taskId): ?RetryTask
+    {
+        return $this->existing?->identity->taskId() === $taskId ? $this->existing : null;
+    }
+
+    public function resolve(RetryTask $task, DateTimeImmutable $now): void { $this->resolved = $task; }
+    public function requireAttention(RetryTask $task, string $reason, DateTimeImmutable $now): RetryTask { return $task; }
+    public function retry(RetryTask $task, DateTimeImmutable $now): RetryTask { return $task; }
+    public function dismiss(RetryTask $task, string $reason, DateTimeImmutable $now): void {}
+
+    public static function task(
+        string $externalId,
+        ?IntegrationFailure $failure = null,
+        ?DateTimeImmutable $now = null,
+    ): RetryTask {
+        $now ??= new DateTimeImmutable('2026-08-18T12:00:00Z');
+        return new RetryTask(
+            new TaskIdentity('orders:import-individual', 'shopify', $externalId),
+            RetryStatus::Pending,
+            1,
+            $now,
+            $now,
+            $now,
+            $failure ?? new IntegrationFailure('timeout', FailureCategory::Temporary, 'Timeout'),
         );
     }
 }

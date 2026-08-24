@@ -1,0 +1,30 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Scenarios\ScenarioRunner;
+use Tracezilla\Shopify\Scenarios\ScenarioCommandArguments;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+try {
+    $arguments = ScenarioCommandArguments::parse(array_slice($argv, 1));
+    $configuration = Configuration::fromEnvironment();
+    $result = (new ScenarioRunner(
+        $project,
+        new ShopifyClient($configuration),
+        new TracezillaClient($configuration),
+    ))->run($arguments['slug'], $arguments['platform']);
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Scenario failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

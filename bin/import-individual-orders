@@ -7,6 +7,8 @@ use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\CommandExecution;
 use Tracezilla\Shopify\Output\IndividualOrderImportRenderer;
+use Tracezilla\Shopify\Retry\FileRetryRepository;
+use Tracezilla\Shopify\RuntimeDirectory;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
 use Tracezilla\Shopify\Shopify\ShopifyOrderService;
 use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyOrderToTracezillaSalesOrderMapper;
@@ -75,6 +77,7 @@ try {
         new ShopifyOrderService(new ShopifyClient($configuration)),
         new TracezillaSalesOrderService(new TracezillaClient($configuration)),
         new ShopifyOrderToTracezillaSalesOrderMapper(),
+        new FileRetryRepository(RuntimeDirectory::resolve(dirname(__DIR__))),
     ))->run(new ImportIndividualOrdersOptions(
         customerName: $customer,
         warehouseLocationNumber: $warehouse,

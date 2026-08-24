@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -eu
+
+echo ""
+echo "============================================================"
+echo "  tracezilla Integration is starting"
+echo "  Please hang on; the first startup might take a while."
+echo "============================================================"
+echo ""
+
+echo "Checking PHP dependencies..."
+composer install --no-interaction --no-progress
+
+if [ ! -f /app/.env ]; then
+    echo ""
+    echo "NOTICE: No .env file was found."
+    echo "Create it with: cp .env.example .env"
+fi
+
+touch /tmp/tracezilla-integration-ready
+
+echo ""
+echo "============================================================"
+echo "  TRACEZILLA INTEGRATION IS READY"
+echo ""
+echo "  Open another terminal and run:"
+echo "  docker compose exec integration php bin/tracezilla-integration help"
+echo "============================================================"
+echo ""
+
+exec sleep infinity
+

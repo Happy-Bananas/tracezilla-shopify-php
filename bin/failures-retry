@@ -1,0 +1,30 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Retry\FileRetryRepository;
+use Tracezilla\Shopify\Retry\RetryManagement;
+use Tracezilla\Shopify\RuntimeDirectory;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+try {
+    $arguments = getopt('', ['task:']);
+    $taskId = trim((string) ($arguments['task'] ?? ''));
+    if ($taskId === '') {
+        throw new InvalidArgumentException('--task is required.');
+    }
+    $task = (new RetryManagement(
+        new FileRetryRepository(RuntimeDirectory::resolve($project)),
+    ))->retry($taskId, new DateTimeImmutable('now'));
+    echo json_encode($task->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Could not retry failure: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}
+

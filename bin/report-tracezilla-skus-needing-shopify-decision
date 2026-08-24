@@ -1,0 +1,50 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Output\CommandExecution;
+use Tracezilla\Shopify\Output\ShopifyProductDecisionReportRenderer;
+use Tracezilla\Shopify\Shopify\Mappers\ShopifyVariantMapper;
+use Tracezilla\Shopify\Shopify\ShopifyCatalogService;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaSkuMapper;
+use Tracezilla\Shopify\Tracezilla\TracezillaCatalogService;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+use Tracezilla\Shopify\Workflows\ReportTracezillaSkusNeedingShopifyDecision;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+try {
+    $options = getopt('', ['limit::', 'json']);
+    $limit = isset($options['limit']) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
+    if ($limit === false || $limit < 1) {
+        throw new InvalidArgumentException('--limit must be a positive integer.');
+    }
+
+    $configuration = Configuration::fromEnvironment();
+    $result = (new ReportTracezillaSkusNeedingShopifyDecision(
+        new ShopifyCatalogService(new ShopifyClient($configuration), new ShopifyVariantMapper()),
+        new TracezillaCatalogService(new TracezillaClient($configuration), new TracezillaSkuMapper()),
+    ))->run($limit);
+
+    $displayedCommand = 'php bin/report-tracezilla-skus-needing-shopify-decision';
+    if (isset($options['limit'])) {
+        $displayedCommand .= " --limit={$limit}";
+    }
+    if (array_key_exists('json', $options)) {
+        $displayedCommand .= ' --json';
+    }
+    $execution = new CommandExecution($displayedCommand, 'read_only');
+
+    echo array_key_exists('json', $options)
+        ? json_encode($execution->withResult($result->toArray()), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL
+        : $execution->header().(new ShopifyProductDecisionReportRenderer())->render($result);
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Shopify product-decision report failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

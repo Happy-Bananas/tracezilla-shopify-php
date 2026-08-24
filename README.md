@@ -1,14 +1,15 @@
-# tracezilla-shopify-php
+# tracezilla Integration
 
-Framework-neutral PHP templates for integrating Shopify with the tracezilla
-API. The examples compare catalogs and safely preview or create missing
-tracezilla SKUs from Shopify variants.
+Headless, framework-neutral PHP application for integrating commerce platforms
+with the tracezilla API. Shopify is the first adapter; WooCommerce support is
+planned. Consultants customize the business rules in PHP and run workflows
+from the console, cron, or another scheduler.
 
 Clone the repository before following the commands below:
 
 ```bash
-git clone https://github.com/Happy-Bananas/tracezilla-shopify-php.git
-cd tracezilla-shopify-php
+git clone https://github.com/Happy-Bananas/tracezilla-shopify-php.git tracezilla-integration-php
+cd tracezilla-integration-php
 ```
 
 ## Hello World: Compare Catalogs
@@ -24,7 +25,7 @@ It never writes to either API. Differences are a successful comparison and
 therefore return exit code `0`; configuration or API errors return a non-zero
 exit code.
 
-## Run with Docker
+## Start the development environment with Docker
 
 Requirements: Docker with the Compose plugin and API credentials for a test
 Shopify store and tracezilla team.
@@ -33,33 +34,86 @@ Shopify store and tracezilla team.
 cp .env.example .env
 ```
 
-Fill in `.env`, then install the pinned dependencies:
+Fill in `.env`, then start the headless integration:
 
 ```bash
-docker compose run --rm php composer install
+docker compose up --build
 ```
+
+Docker installs missing PHP dependencies automatically. Wait until the terminal
+displays `TRACEZILLA INTEGRATION IS READY`, then leave it running and open a
+second terminal for commands.
+
+List the available commands:
+
+```bash
+docker compose exec integration php bin/tracezilla-integration help
+```
+
+## Create your first business scenario
+
+Generate the smallest runnable consultant feature:
+
+```bash
+docker compose exec integration php bin/tracezilla-integration scenario:create confirm-credentials --platform=shopify
+```
+
+The generator creates four files under
+`custom/Scenarios/Shopify/ConfirmCredentials/`: a Shopify GraphQL query, a read-only
+tracezilla request, PHP business rules, and a unit test. The initial “hello
+world” scenario reads the Shopify shop name and one tracezilla SKU page to
+confirm that both credentials work. It does not write to either service.
+
+Run its test, then execute the credential check:
+
+```bash
+docker compose exec integration composer test
+docker compose exec integration php bin/tracezilla-integration scenario:run confirm-credentials --platform=shopify
+```
+
+Copy and rename generated scenarios for customer features. Keep HTTP,
+authentication, locking, retries, and history in the framework; customize the
+generated query, request, rules, and tests.
 
 Compare the catalogs and show up to ten rows from each result category:
 
 ```bash
-docker compose run --rm php php bin/compare-catalogs
+docker compose exec integration php bin/tracezilla-integration catalog:compare
 ```
 
 Change the display limit or request machine-readable output:
 
 ```bash
-docker compose run --rm php php bin/compare-catalogs --limit=25
-docker compose run --rm php php bin/compare-catalogs --json
+docker compose exec integration php bin/tracezilla-integration catalog:compare --limit=25
+docker compose exec integration php bin/tracezilla-integration catalog:compare --json
 ```
 
 The comparison always uses the complete catalogs. The display limit keeps
 terminal output manageable and does not change the summary counts. JSON output
 contains the complete result arrays.
 
+## Report tracezilla SKUs needing a Shopify decision
+
+List tracezilla SKUs that have no Shopify variant with the same SKU code:
+
+```bash
+docker compose exec integration php bin/tracezilla-integration catalog:report-shopify-decisions --limit=10
+```
+
+Add `--json` for bounded, structured output. This command is read-only: it does
+not claim to create Shopify products. For every reported SKU, a consultant must
+decide whether to create a new product, add a variant to an existing product,
+map or change the SKU, or intentionally exclude it.
+
+A future creation workflow must also define the product/variant relationship,
+title, handle, options, vendor, product type, status and publication channels;
+pricing, tax and shipping behavior; inventory tracking; images and descriptive
+content. Those choices cannot be inferred safely from the current catalog APIs.
+
 ## Run the tests
 
 ```bash
-docker compose run --rm php composer test
+docker compose exec integration composer test
 ```
 
 Tests use in-memory inputs and do not contact Shopify or tracezilla.
@@ -69,7 +123,7 @@ Tests use in-memory inputs and do not contact Shopify or tracezilla.
 Preview at most ten Shopify variants without writing anything:
 
 ```bash
-docker compose run --rm php php bin/create-tracezilla-skus
+docker compose exec integration php bin/tracezilla-integration catalog:create-tracezilla-skus
 ```
 
 The result reports records that would be created, already exist, are duplicate,
@@ -79,7 +133,7 @@ or add `--json` for structured output.
 Execution requires two explicit flags:
 
 ```bash
-docker compose run --rm php php bin/create-tracezilla-skus --execute --confirm --limit=1
+docker compose exec integration php bin/tracezilla-integration catalog:create-tracezilla-skus --execute --confirm --limit=1
 ```
 
 Review `ShopifyVariantToTracezillaSkuMapper` before execution. Its `pcs`,
@@ -91,13 +145,13 @@ must be adapted to the customer.
 List every location visible to the configured Shopify app:
 
 ```bash
-docker compose run --rm php php bin/list-shopify-locations
+docker compose exec integration php bin/tracezilla-integration shopify:locations
 ```
 
 Return the complete structured result as JSON:
 
 ```bash
-docker compose run --rm php php bin/list-shopify-locations --json
+docker compose exec integration php bin/tracezilla-integration shopify:locations --json
 ```
 
 The command is read-only and requires the Shopify `read_locations` scope. Use
@@ -109,7 +163,7 @@ First retrieve the Shopify location ID with `list-shopify-locations`. Then run a
 bounded preview using the corresponding tracezilla warehouse location number:
 
 ```bash
-docker compose run --rm php php bin/synchronize-inventory \
+docker compose exec integration php bin/tracezilla-integration inventory:sync \
   --shopify-location=gid://shopify/Location/123 \
   --tracezilla-warehouse=2 \
   --limit=10
@@ -118,7 +172,7 @@ docker compose run --rm php php bin/synchronize-inventory \
 Writes require both explicit safety flags:
 
 ```bash
-docker compose run --rm php php bin/synchronize-inventory \
+docker compose exec integration php bin/tracezilla-integration inventory:sync \
   --shopify-location=gid://shopify/Location/123 \
   --tracezilla-warehouse=2 \
   --execute --confirm --limit=1
@@ -133,7 +187,7 @@ Build a read-only sales report from orders created during the last three days.
 Lines are grouped by business date, currency, and SKU:
 
 ```bash
-docker compose run --rm php php bin/report-collected-orders \
+docker compose exec integration php bin/tracezilla-integration orders:report-collected \
   --days=3 --timezone=Europe/Copenhagen --limit=10
 ```
 
@@ -155,7 +209,7 @@ orders. The tracezilla customer name and warehouse location number are explicit
 so the business relationship is visible whenever the command runs:
 
 ```bash
-docker compose run --rm php php bin/import-individual-orders \
+docker compose exec integration php bin/tracezilla-integration orders:import-individual \
   --customer='Banana primary webshop' \
   --warehouse=2 \
   --days=3 \
@@ -166,7 +220,7 @@ The command is a dry run by default. After reviewing the mapping and output,
 one bounded sandbox write requires both safety flags:
 
 ```bash
-docker compose run --rm php php bin/import-individual-orders \
+docker compose exec integration php bin/tracezilla-integration orders:import-individual \
   --customer='Banana primary webshop' \
   --warehouse=2 \
   --days=3 \
@@ -199,10 +253,35 @@ The classes use ordinary PHP and Composer—no Laravel, Symfony, or other
 application framework. They can be wrapped by a framework command, controller,
 job, or scheduler without changing the workflow.
 
-The optional
-[`tracezilla-integration-workbench`](https://github.com/Happy-Bananas/tracezilla-integration-workbench)
-is a separate Laravel application for interactive credential checks and safe
-experiments.
+The integration is intentionally headless. It does not require Laravel, a web
+interface, or a database.
+
+## Deployment safety and failed work
+
+Before scheduling commands, verify the private writable runtime directory and
+atomic global lock:
+
+```bash
+docker compose exec integration php bin/tracezilla-integration deployment:check
+```
+
+Workflow commands acquire one global non-blocking lock automatically. The
+individual-order workflow stores failed writes as atomic JSON task files under
+`var/retry/`, respects retry backoff during later reconciliations, moves
+persistent or business failures to `attention`, and writes sanitized lifecycle
+events to monthly `var/history/*.ndjson` files.
+
+Inspect and manage failures with:
+
+```bash
+docker compose exec integration php bin/tracezilla-integration failures:list
+docker compose exec integration php bin/tracezilla-integration failures:retry --task=<task-id>
+docker compose exec integration php bin/tracezilla-integration failures:dismiss --task=<task-id> --reason='Approved exclusion'
+```
+
+Set `TRACEZILLA_RUNTIME_DIR` when the default `var/` directory is not suitable.
+The runtime directory must be private, persistent, and writable by the same
+user that runs cron.
 
 ## Configuration safety
 

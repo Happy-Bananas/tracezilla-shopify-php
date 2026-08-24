@@ -1,0 +1,31 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Retry\FileRetryRepository;
+use Tracezilla\Shopify\Retry\RetryManagement;
+use Tracezilla\Shopify\RuntimeDirectory;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+try {
+    $arguments = getopt('', ['task:', 'reason:']);
+    $taskId = trim((string) ($arguments['task'] ?? ''));
+    $reason = trim((string) ($arguments['reason'] ?? ''));
+    if ($taskId === '' || $reason === '') {
+        throw new InvalidArgumentException('--task and --reason are required.');
+    }
+    (new RetryManagement(
+        new FileRetryRepository(RuntimeDirectory::resolve($project)),
+    ))->dismiss($taskId, $reason, new DateTimeImmutable('now'));
+    echo "Retry task {$taskId} was dismissed.\n";
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Could not dismiss failure: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}
+

@@ -14,7 +14,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Tracezilla\\Shopify\\": "src/"
+            "Tracezilla\\Shopify\\": "src/",
+            "Consultant\\": "custom/"
         }
     },
     "autoload-dev": {

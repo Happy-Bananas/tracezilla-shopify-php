@@ -1,0 +1,26 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Tracezilla\Shopify\Scenarios\ScenarioGenerator;
+use Tracezilla\Shopify\Scenarios\ScenarioCommandArguments;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+
+try {
+    $arguments = ScenarioCommandArguments::parse(array_slice($argv, 1));
+    $scenario = (new ScenarioGenerator($project))->generate($arguments['slug'], $arguments['platform']);
+    echo "Created {$scenario->platform} scenario '{$scenario->slug}':\n";
+    foreach ($scenario->files as $file) {
+        echo '  '.substr($file, strlen($project) + 1).PHP_EOL;
+    }
+    echo "\nNext:\n";
+    echo "  composer test\n";
+    echo "  php bin/tracezilla-integration scenario:run {$scenario->slug} --platform={$scenario->platform}\n";
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Could not create scenario: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

@@ -1,0 +1,80 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Lock\FileIntegrationLock;
+use Tracezilla\Shopify\RuntimeDirectory;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+$commands = [
+    'catalog:compare' => 'compare-catalogs',
+    'catalog:report-shopify-decisions' => 'report-tracezilla-skus-needing-shopify-decision',
+    'catalog:create-tracezilla-skus' => 'create-tracezilla-skus',
+    'shopify:locations' => 'list-shopify-locations',
+    'inventory:sync' => 'synchronize-inventory',
+    'orders:report-collected' => 'report-collected-orders',
+    'orders:import-individual' => 'import-individual-orders',
+    'deployment:check' => 'deployment-check',
+    'failures:list' => 'failures-list',
+    'failures:retry' => 'failures-retry',
+    'failures:dismiss' => 'failures-dismiss',
+    'scenario:create' => 'scenario-create',
+    'scenario:run' => 'scenario-run',
+];
+
+$command = $argv[1] ?? 'help';
+
+if (in_array($command, ['help', '--help', '-h', 'list'], true)) {
+    echo "tracezilla Integration\n\n";
+    echo "Usage:\n";
+    echo "  php bin/tracezilla-integration <command> [options]\n\n";
+    echo "Available commands:\n";
+    foreach (array_keys($commands) as $name) {
+        echo "  {$name}\n";
+    }
+    echo "\nRun a command with its options, for example:\n";
+    echo "  php bin/tracezilla-integration catalog:compare --limit=10\n";
+    exit(0);
+}
+
+if (! isset($commands[$command])) {
+    fwrite(STDERR, "Unknown command: {$command}\n");
+    fwrite(STDERR, "Run 'php bin/tracezilla-integration help' to list commands.\n");
+    exit(2);
+}
+
+$script = __DIR__.DIRECTORY_SEPARATOR.$commands[$command];
+$arguments = array_slice($argv, 2);
+$parts = array_merge([PHP_BINARY, $script], $arguments);
+$shellCommand = implode(' ', array_map('escapeshellarg', $parts));
+
+$unlockedCommands = ['deployment:check', 'failures:list', 'scenario:create'];
+$lock = null;
+if (! in_array($command, $unlockedCommands, true)) {
+    $locks = new FileIntegrationLock(RuntimeDirectory::resolve($project));
+    $lock = $locks->acquire('integration', ['command' => $command]);
+    if ($lock === null) {
+        $metadata = $locks->metadata('integration');
+        fwrite(STDERR, "Another integration command is already running.\n");
+        if (is_string($metadata['command'] ?? null)) {
+            fwrite(STDERR, "Command: {$metadata['command']}\n");
+        }
+        if (is_string($metadata['acquired_at'] ?? null)) {
+            fwrite(STDERR, "Started: {$metadata['acquired_at']}\n");
+        }
+        fwrite(STDERR, "This invocation was skipped safely; the next reconciliation can retry.\n");
+        exit(75);
+    }
+}
+
+try {
+    passthru($shellCommand, $exitCode);
+    exit($exitCode);
+} finally {
+    $lock?->release();
+}

@@ -1,0 +1,22 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Deployment\DeploymentChecker;
+use Tracezilla\Shopify\RuntimeDirectory;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+try {
+    $result = (new DeploymentChecker())->check(RuntimeDirectory::resolve($project));
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+    exit($result['ready'] ? 0 : 1);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Deployment check failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}
+

@@ -1,12 +1,19 @@
 services:
-  php:
+  integration:
     build: .
     working_dir: /app
+    init: true
     volumes:
       - .:/app
       - composer-cache:/tmp/composer-cache
     environment:
       COMPOSER_CACHE_DIR: /tmp/composer-cache
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/tracezilla-integration-ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+      start_period: 30s
 
 volumes:
   composer-cache:
