@@ -39,14 +39,23 @@ final class ShopifyClient
 
     public function graphql(string $query, array $variables = []): array
     {
-        $response = $this->http->post('graphql.json', ['json' => ['query' => $query, 'variables' => $variables]]);
+        $response = $this->http->post('graphql.json', [
+            'json' => ['query' => $query, 'variables' => (object) $variables],
+        ]);
         $payload = json_decode((string) $response->getBody(), true, flags: JSON_THROW_ON_ERROR);
 
         if (! is_array($payload)) {
             throw new RuntimeException('Shopify returned an invalid GraphQL response.');
         }
         if (($payload['errors'] ?? []) !== []) {
-            throw new RuntimeException('Shopify rejected the GraphQL query.');
+            $messages = array_values(array_filter(array_map(
+                static fn (mixed $error): ?string => is_array($error) && is_string($error['message'] ?? null)
+                    ? $error['message']
+                    : null,
+                $payload['errors'],
+            )));
+            $detail = $messages === [] ? '' : ' '.implode(' ', $messages);
+            throw new RuntimeException('Shopify rejected the GraphQL query.'.$detail);
         }
 
         return $payload;
