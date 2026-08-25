@@ -39,7 +39,12 @@ final class ProjectInstallerTest extends TestCase
 
         self::assertSame(0, $exitCode, implode("\n", $output));
         self::assertFileExists($target.'/.env');
-        self::assertSame(file_get_contents($target.'/.env.example'), file_get_contents($target.'/.env'));
+        self::assertSame(
+            file_get_contents($target.'/.env.example')
+                ."\nTRACEZILLA_DOCKER_UID=".getmyuid()
+                ."\nTRACEZILLA_DOCKER_GID=".getmygid()."\n",
+            file_get_contents($target.'/.env'),
+        );
         self::assertTrue(is_executable($target.'/check-connection'));
         self::assertDirectoryExists($target.'/.git');
         exec('git -C '.escapeshellarg($target).' remote', $remotes);

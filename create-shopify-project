@@ -26,6 +26,7 @@ echo "Creating Shopify integration in $project ..."
 git clone --depth 1 "$template_repository" "$project"
 git -C "$project" remote rename origin template
 cp "$project/.env.example" "$project/.env"
+printf '\nTRACEZILLA_DOCKER_UID=%s\nTRACEZILLA_DOCKER_GID=%s\n' "$(id -u)" "$(id -g)" >> "$project/.env"
 
 echo ""
 echo "Your Shopify integration is ready."

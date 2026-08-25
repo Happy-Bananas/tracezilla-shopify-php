@@ -8,8 +8,6 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-RUN git config --global --add safe.directory /app
-
 COPY docker/start-integration /usr/local/bin/start-integration
 RUN chmod +x /usr/local/bin/start-integration
 

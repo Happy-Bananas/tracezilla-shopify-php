@@ -2,10 +2,10 @@ services:
   integration:
     build: .
     working_dir: /app
+    user: "${TRACEZILLA_DOCKER_UID:-1000}:${TRACEZILLA_DOCKER_GID:-1000}"
     init: true
     volumes:
       - .:/app
-      - composer-cache:/tmp/composer-cache
     environment:
       COMPOSER_CACHE_DIR: /tmp/composer-cache
     healthcheck:
@@ -14,6 +14,3 @@ services:
       timeout: 2s
       retries: 30
       start_period: 30s
-
-volumes:
-  composer-cache:
