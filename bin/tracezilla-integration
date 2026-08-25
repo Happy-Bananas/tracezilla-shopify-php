@@ -12,6 +12,7 @@ require $project.'/vendor/autoload.php';
 Dotenv::createImmutable($project)->safeLoad();
 
 $commands = [
+    'connection:check' => 'check-connection',
     'catalog:compare' => 'compare-catalogs',
     'catalog:report-shopify-decisions' => 'report-tracezilla-skus-needing-shopify-decision',
     'catalog:create-tracezilla-skus' => 'create-tracezilla-skus',
@@ -53,7 +54,7 @@ $arguments = array_slice($argv, 2);
 $parts = array_merge([PHP_BINARY, $script], $arguments);
 $shellCommand = implode(' ', array_map('escapeshellarg', $parts));
 
-$unlockedCommands = ['deployment:check', 'failures:list', 'scenario:create'];
+$unlockedCommands = ['connection:check', 'deployment:check', 'failures:list', 'scenario:create'];
 $lock = null;
 if (! in_array($command, $unlockedCommands, true)) {
     $locks = new FileIntegrationLock(RuntimeDirectory::resolve($project));

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+set -eu
+
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker with Docker Compose is required." >&2
+    exit 2
+fi
+
+if [ ! -f .env ]; then
+    echo "No .env file found. Create it with: cp .env.example .env" >&2
+    exit 2
+fi
+
+echo "Starting tracezilla Integration ..."
+docker compose up --build -d integration
+
+echo "Waiting for the integration to become ready ..."
+attempt=0
+while ! docker compose exec -T integration test -f /tmp/tracezilla-integration-ready 2>/dev/null; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 120 ]; then
+        echo "The integration did not become ready. Inspect: docker compose logs integration" >&2
+        exit 1
+    fi
+    if [ $((attempt % 5)) -eq 0 ]; then
+        echo "Still starting; please hang on ..."
+    fi
+    sleep 1
+done
+
+docker compose exec -T integration php bin/tracezilla-integration connection:check "$@"

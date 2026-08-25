@@ -1,0 +1,38 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Dotenv\Dotenv;
+use Tracezilla\Shopify\Configuration;
+use Tracezilla\Shopify\Connection\ConnectionChecker;
+use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Tracezilla\TracezillaClient;
+
+$project = dirname(__DIR__);
+require $project.'/vendor/autoload.php';
+Dotenv::createImmutable($project)->safeLoad();
+
+try {
+    $options = getopt('', ['json']);
+    $configuration = Configuration::fromEnvironment();
+    $result = (new ConnectionChecker(
+        new ShopifyClient($configuration),
+        new TracezillaClient($configuration),
+    ))->check();
+
+    if (array_key_exists('json', $options)) {
+        echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
+    } else {
+        echo "Connection check passed.\n";
+        echo 'Shopify: '.$result['shopify']['shop_name'];
+        if (is_string($result['shopify']['domain'])) {
+            echo ' ('.$result['shopify']['domain'].')';
+        }
+        echo "\ntracezilla: connected\n";
+    }
+    exit(0);
+} catch (Throwable $exception) {
+    fwrite(STDERR, 'Connection check failed: '.$exception->getMessage().PHP_EOL);
+    exit(1);
+}

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+set -eu
+
+project=${1:-my-tracezilla-integration}
+template_repository=${TRACEZILLA_TEMPLATE_REPOSITORY:-https://github.com/Happy-Bananas/tracezilla-shopify-php.git}
+
+case "$project" in
+    ''|-*|*'..'*)
+        echo "Invalid project directory: $project" >&2
+        exit 2
+        ;;
+esac
+
+if [ -e "$project" ]; then
+    echo "Cannot create project: $project already exists." >&2
+    exit 2
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+    echo "Git is required to create the project." >&2
+    exit 2
+fi
+
+echo "Creating Shopify integration in $project ..."
+git clone --depth 1 "$template_repository" "$project"
+git -C "$project" remote rename origin template
+cp "$project/.env.example" "$project/.env"
+
+echo ""
+echo "Your Shopify integration is ready."
+echo ""
+echo "Next:"
+echo "  cd $project"
+echo "  Edit .env"
+echo "  ./check-connection"
