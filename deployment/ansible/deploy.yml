@@ -1,0 +1,84 @@
+---
+- name: Deploy BifrostConnect
+  hosts: production
+  gather_facts: false
+
+  pre_tasks:
+    - name: Validate deployment configuration
+      ansible.builtin.assert:
+        that:
+          - bifrostconnect_path is defined
+          - bifrostconnect_path | length > 0
+          - shopify_shop_url is defined
+          - tracezilla_team_slug is defined
+          - vault_shopify_client_id is defined
+          - vault_shopify_client_secret is defined
+          - vault_tracezilla_api_key is defined
+        fail_msg: Complete settings.yml and create the encrypted vault.yml before deploying.
+      no_log: true
+
+  tasks:
+    - name: Create the application directory
+      ansible.builtin.file:
+        path: "{{ bifrostconnect_path }}"
+        state: directory
+        mode: "0750"
+
+    - name: Upload the tested project
+      ansible.posix.synchronize:
+        src: "{{ playbook_dir }}/../../"
+        dest: "{{ bifrostconnect_path }}/"
+        archive: true
+        delete: true
+        rsync_opts:
+          - "--exclude=.git/"
+          - "--exclude=.env"
+          - "--exclude=vendor/"
+          - "--exclude=var/"
+          - "--exclude=deployment/ansible/inventory.yml"
+          - "--exclude=deployment/ansible/group_vars/production/vault.yml"
+          - "--exclude=deployment/ansible/.vault-password"
+
+    - name: Create the private runtime directory
+      ansible.builtin.file:
+        path: "{{ bifrostconnect_path }}/var"
+        state: directory
+        mode: "0700"
+
+    - name: Create the environment file from encrypted secrets
+      ansible.builtin.template:
+        src: templates/env.j2
+        dest: "{{ bifrostconnect_path }}/.env"
+        mode: "0600"
+      no_log: true
+
+    - name: Install production PHP packages
+      ansible.builtin.command:
+        argv:
+          - composer
+          - install
+          - --no-dev
+          - --no-interaction
+          - --prefer-dist
+          - --optimize-autoloader
+        chdir: "{{ bifrostconnect_path }}"
+      register: composer_install
+      changed_when: "'Nothing to install, update or remove' not in composer_install.stdout"
+
+    - name: Check the deployment
+      ansible.builtin.command:
+        argv:
+          - php
+          - bin/bifrost-connect
+          - deployment:check
+        chdir: "{{ bifrostconnect_path }}"
+      changed_when: false
+
+    - name: Check the Shopify and tracezilla connections
+      ansible.builtin.command:
+        argv:
+          - php
+          - bin/bifrost-connect
+          - connection:check
+        chdir: "{{ bifrostconnect_path }}"
+      changed_when: false

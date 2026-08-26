@@ -1,0 +1,9 @@
+---
+all:
+  children:
+    production:
+      hosts:
+        bifrostconnect:
+          ansible_host: YOUR_SERVER
+          ansible_port: YOUR_SSH_PORT
+          ansible_user: YOUR_SSH_USER

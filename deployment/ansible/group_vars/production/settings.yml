@@ -1,0 +1,13 @@
+---
+bifrostconnect_path: /absolute/server/path/YOUR_PROJECT_NAME
+
+shopify_shop_url: your-store.myshopify.com
+shopify_scope: read_products
+shopify_api_version: "2025-10"
+
+tracezilla_base_url: https://app.tracezilla.com
+tracezilla_team_slug: your-team-slug
+tracezilla_runtime_dir: var
+
+http_timeout: 30
+http_connect_timeout: 10
