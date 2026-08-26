@@ -16,7 +16,10 @@ try {
     foreach ($scenario->files as $file) {
         echo '  '.substr($file, strlen($project) + 1).PHP_EOL;
     }
-    echo "\nNext:\n";
+    echo "\nNext with Docker:\n";
+    echo "  docker compose exec integration composer test\n";
+    echo "  docker compose exec integration php bin/bifrost-connect scenario:run {$scenario->slug} --platform={$scenario->platform}\n";
+    echo "\nWithout Docker:\n";
     echo "  composer test\n";
     echo "  php bin/bifrost-connect scenario:run {$scenario->slug} --platform={$scenario->platform}\n";
     exit(0);
