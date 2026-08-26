@@ -3,6 +3,16 @@
   hosts: production
   gather_facts: false
 
+  vars:
+    bifrostconnect_source_directories:
+      - bin
+      - custom
+      - src
+    bifrostconnect_source_files:
+      - .env.example
+      - composer.json
+      - composer.lock
+
   pre_tasks:
     - name: Validate deployment configuration
       ansible.builtin.assert:
@@ -24,20 +34,25 @@
         state: directory
         mode: "0750"
 
-    - name: Upload the tested project
-      ansible.posix.synchronize:
-        src: "{{ playbook_dir }}/../../"
-        dest: "{{ bifrostconnect_path }}/"
-        archive: true
-        delete: true
-        rsync_opts:
-          - "--exclude=.git/"
-          - "--exclude=.env"
-          - "--exclude=vendor/"
-          - "--exclude=var/"
-          - "--exclude=deployment/ansible/inventory.yml"
-          - "--exclude=deployment/ansible/group_vars/production/vault.yml"
-          - "--exclude=deployment/ansible/.vault-password"
+    - name: Remove the previously deployed source directories
+      ansible.builtin.file:
+        path: "{{ bifrostconnect_path }}/{{ item }}"
+        state: absent
+      loop: "{{ bifrostconnect_source_directories }}"
+
+    - name: Upload the tested source directories over SSH
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../{{ item }}/"
+        dest: "{{ bifrostconnect_path }}/{{ item }}/"
+        mode: preserve
+      loop: "{{ bifrostconnect_source_directories }}"
+
+    - name: Upload the tested project files over SSH
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../{{ item }}"
+        dest: "{{ bifrostconnect_path }}/{{ item }}"
+        mode: preserve
+      loop: "{{ bifrostconnect_source_files }}"
 
     - name: Create the private runtime directory
       ansible.builtin.file:
