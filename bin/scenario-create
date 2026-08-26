@@ -18,7 +18,7 @@ try {
     }
     echo "\nNext:\n";
     echo "  composer test\n";
-    echo "  php bin/tracezilla-integration scenario:run {$scenario->slug} --platform={$scenario->platform}\n";
+    echo "  php bin/bifrost-connect scenario:run {$scenario->slug} --platform={$scenario->platform}\n";
     exit(0);
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Could not create scenario: '.$exception->getMessage().PHP_EOL);

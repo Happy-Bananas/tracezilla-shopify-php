@@ -31,21 +31,21 @@ $commands = [
 $command = $argv[1] ?? 'help';
 
 if (in_array($command, ['help', '--help', '-h', 'list'], true)) {
-    echo "tracezilla Integration\n\n";
+    echo "BifrostConnect\n\n";
     echo "Usage:\n";
-    echo "  php bin/tracezilla-integration <command> [options]\n\n";
+    echo "  php bin/bifrost-connect <command> [options]\n\n";
     echo "Available commands:\n";
     foreach (array_keys($commands) as $name) {
         echo "  {$name}\n";
     }
     echo "\nRun a command with its options, for example:\n";
-    echo "  php bin/tracezilla-integration catalog:compare --limit=10\n";
+    echo "  php bin/bifrost-connect catalog:compare --limit=10\n";
     exit(0);
 }
 
 if (! isset($commands[$command])) {
     fwrite(STDERR, "Unknown command: {$command}\n");
-    fwrite(STDERR, "Run 'php bin/tracezilla-integration help' to list commands.\n");
+    fwrite(STDERR, "Run 'php bin/bifrost-connect help' to list commands.\n");
     exit(2);
 }
 

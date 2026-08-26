@@ -1,4 +1,4 @@
-# tracezilla Integration
+# BifrostConnect
 
 Headless, framework-neutral PHP application for integrating commerce platforms
 with the tracezilla API. Shopify is the first adapter; WooCommerce support is
@@ -7,7 +7,7 @@ from the console, cron, or another scheduler.
 
 ## Documentation
 
-See the [tracezilla Integrations documentation](https://happy-bananas.github.io/tracezilla-integrations-docs/)
+See the [BifrostConnect documentation](https://happy-bananas.github.io/tracezilla-integrations-docs/)
 for installation, configuration, scenario generation, business rules,
 available commands, deployment, and troubleshooting.
 

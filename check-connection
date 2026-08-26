@@ -12,7 +12,7 @@ if [ ! -f .env ]; then
     exit 2
 fi
 
-echo "Starting tracezilla Integration ..."
+echo "Starting BifrostConnect ..."
 docker compose up --build -d integration
 
 echo "Waiting for the integration to become ready ..."
@@ -29,4 +29,4 @@ while ! docker compose exec -T integration test -f /tmp/tracezilla-integration-r
     sleep 1
 done
 
-docker compose exec -T integration php bin/tracezilla-integration connection:check "$@"
+docker compose exec -T integration php bin/bifrost-connect connection:check "$@"

@@ -2,7 +2,7 @@
 
 set -eu
 
-project=${1:-my-tracezilla-integration}
+project=${1:-my-bifrost-connect-project}
 template_repository=${TRACEZILLA_TEMPLATE_REPOSITORY:-https://github.com/Happy-Bananas/tracezilla-shopify-php.git}
 
 case "$project" in

@@ -4,7 +4,7 @@ set -eu
 
 echo ""
 echo "============================================================"
-echo "  tracezilla Integration is starting"
+echo "  BifrostConnect is starting"
 echo "  Please hang on; the first startup might take a while."
 echo "============================================================"
 echo ""
@@ -22,12 +22,11 @@ touch /tmp/tracezilla-integration-ready
 
 echo ""
 echo "============================================================"
-echo "  TRACEZILLA INTEGRATION IS READY"
+echo "  BIFROSTCONNECT IS READY"
 echo ""
 echo "  Open another terminal and run:"
-echo "  docker compose exec integration php bin/tracezilla-integration help"
+echo "  docker compose exec integration php bin/bifrost-connect help"
 echo "============================================================"
 echo ""
 
 exec sleep infinity
-
