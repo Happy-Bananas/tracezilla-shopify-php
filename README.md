@@ -1,6 +1,6 @@
 # BifrostConnect
 
-Headless, framework-neutral PHP application for integrating commerce platforms
+Headless, framework-neutral PHP application for integrating external services
 with the tracezilla API. Shopify is the first adapter; WooCommerce support is
 planned. Consultants customize the business rules in PHP and run workflows
 from the console, cron, or another scheduler.
