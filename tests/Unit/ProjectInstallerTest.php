@@ -23,67 +23,34 @@ final class ProjectInstallerTest extends TestCase
         }
     }
 
-    public function test_it_creates_a_project_with_local_configuration_and_safe_template_remote(): void
+    public function test_it_creates_a_shopify_project_with_the_shared_script(): void
     {
-        $project = dirname(__DIR__, 2);
-        $template = $this->createTemplate($project);
-        $target = $this->temporaryDirectory.'/my-shopify-integration';
-        $command = sprintf(
-            'TRACEZILLA_TEMPLATE_REPOSITORY=%s sh %s %s 2>&1',
-            escapeshellarg($template),
-            escapeshellarg($project.'/create-shopify-project'),
-            escapeshellarg($target),
-        );
-
-        exec($command, $output, $exitCode);
-
-        self::assertSame(0, $exitCode, implode("\n", $output));
-        self::assertFileExists($target.'/.env');
-        self::assertSame(
-            file_get_contents($target.'/.env.example')
-                ."\nTRACEZILLA_DOCKER_UID=".getmyuid()
-                ."\nTRACEZILLA_DOCKER_GID=".getmygid()."\n",
-            file_get_contents($target.'/.env'),
-        );
-        self::assertTrue(is_executable($target.'/check-connection'));
-        self::assertDirectoryExists($target.'/.git');
-        exec('git -C '.escapeshellarg($target).' remote', $remotes);
-        self::assertSame(['template'], $remotes);
+        self::assertSame("shopify\nhappy-hanna-shopify", $this->runInstaller('happy-hanna-shopify'));
     }
 
-    public function test_it_refuses_to_overwrite_an_existing_path(): void
+    public function test_it_keeps_the_default_project_name(): void
     {
-        $project = dirname(__DIR__, 2);
-        $template = $this->createTemplate($project);
-        $target = $this->temporaryDirectory.'/existing';
-        mkdir($target);
+        self::assertSame("shopify\nmy-bifrost-connect-project", $this->runInstaller());
+    }
+
+    /**
+     * Runs create-shopify-project against a stand-in for the shared script that
+     * prints the arguments it receives.
+     */
+    private function runInstaller(string ...$arguments): string
+    {
+        $sharedScript = $this->temporaryDirectory.'/create-project';
+        file_put_contents($sharedScript, "printf '%s\\n' \"\$@\"\n");
 
         exec(sprintf(
-            'TRACEZILLA_TEMPLATE_REPOSITORY=%s sh %s %s 2>&1',
-            escapeshellarg($template),
-            escapeshellarg($project.'/create-shopify-project'),
-            escapeshellarg($target),
+            'TRACEZILLA_CREATE_PROJECT_URL=%s sh %s %s 2>&1',
+            escapeshellarg('file://'.$sharedScript),
+            escapeshellarg(dirname(__DIR__, 2).'/create-shopify-project'),
+            implode(' ', array_map('escapeshellarg', $arguments)),
         ), $output, $exitCode);
 
-        self::assertNotSame(0, $exitCode);
-        self::assertStringContainsString('already exists', implode("\n", $output));
-    }
+        self::assertSame(0, $exitCode, implode("\n", $output));
 
-    private function createTemplate(string $project): string
-    {
-        $template = $this->temporaryDirectory.'/template';
-        mkdir($template);
-        copy($project.'/.env.example', $template.'/.env.example');
-        file_put_contents($template.'/check-connection', "#!/bin/sh\n");
-        chmod($template.'/check-connection', 0755);
-        exec(
-            'git -C '.escapeshellarg($template).' init -q -b main'
-            .' && git -C '.escapeshellarg($template).' config user.email test@example.com'
-            .' && git -C '.escapeshellarg($template).' config user.name Test'
-            .' && git -C '.escapeshellarg($template).' add .'
-            .' && git -C '.escapeshellarg($template).' commit -qm template'
-        );
-
-        return $template;
+        return implode("\n", $output);
     }
 }
