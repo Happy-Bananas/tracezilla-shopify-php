@@ -23,7 +23,8 @@
           - tracezilla_team_slug is defined
           - vault_shopify_client_id is defined
           - vault_shopify_client_secret is defined
-          - vault_tracezilla_api_key is defined
+          - vault_tracezilla_client_id is defined
+          - vault_tracezilla_client_secret is defined
         fail_msg: Complete settings.yml and create the encrypted vault.yml before deploying.
       no_log: true
 
