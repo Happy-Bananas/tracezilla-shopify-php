@@ -1,6 +1,5 @@
 /.env
 /.phpunit.cache
-/PROJECT-PLAN.md
 /vendor/
 /deployment/ansible/inventory.yml
 /deployment/ansible/.vault-password
