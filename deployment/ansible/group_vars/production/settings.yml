@@ -1,5 +1,5 @@
 ---
-bifrostconnect_path: /absolute/server/path/YOUR_PROJECT_NAME
+bifrostconnect_path: /absolute/server/path/YOUR_INTEGRATION_NAME
 
 shopify_shop_url: your-store.myshopify.com
 shopify_scope: read_products
