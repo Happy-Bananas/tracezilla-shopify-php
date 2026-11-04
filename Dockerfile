@@ -8,7 +8,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-COPY docker/start-integration /usr/local/bin/start-integration
-RUN chmod +x /usr/local/bin/start-integration
+# System-wide, so it applies to whichever user compose runs the container as.
+RUN git config --system --add safe.directory /app \
+    && mkdir -p /tmp/composer-cache \
+    && chmod 1777 /tmp/composer-cache
 
-CMD ["start-integration"]

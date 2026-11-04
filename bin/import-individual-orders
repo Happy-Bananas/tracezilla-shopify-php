@@ -29,7 +29,6 @@ try {
         'limit::',
         'dry-run',
         'execute',
-        'confirm',
         'json',
     ]);
     $customer = is_string($arguments['customer'] ?? null)
@@ -54,7 +53,6 @@ try {
     $mode = WriteMode::fromOptions(
         array_key_exists('dry-run', $arguments),
         array_key_exists('execute', $arguments),
-        array_key_exists('confirm', $arguments),
     );
     if (! $mode->isChosen()) {
         throw new InvalidArgumentException(WriteMode::CHOOSE_A_MODE);
@@ -69,7 +67,7 @@ try {
         $limit,
     );
     if ($execute) {
-        $displayedCommand .= ' --execute --confirm';
+        $displayedCommand .= ' --execute';
     } else {
         $displayedCommand .= ' --dry-run';
     }

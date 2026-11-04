@@ -1,8 +1,13 @@
 #!/bin/sh
+# Check the Shopify and tracezilla connections with Docker.
+# Builds the container and installs the PHP packages when needed, then runs
+# bin/bifrost-connect connection:check. Arguments such as --json are passed through.
 
 set -eu
 
-if ! command -v docker >/dev/null 2>&1; then
+cd "$(dirname "$0")"
+
+if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
     echo "Docker with Docker Compose is required." >&2
     exit 2
 fi
@@ -12,21 +17,9 @@ if [ ! -f .env ]; then
     exit 2
 fi
 
-echo "Starting the integration ..."
-docker compose up --build -d integration
+if [ ! -f vendor/autoload.php ]; then
+    echo "Installing the PHP packages (first run only) ..." >&2
+    docker compose run --rm php composer install --no-interaction --quiet
+fi
 
-echo "Waiting for the integration to become ready ..."
-attempt=0
-while ! docker compose exec -T integration test -f /tmp/tracezilla-integration-ready 2>/dev/null; do
-    attempt=$((attempt + 1))
-    if [ "$attempt" -ge 120 ]; then
-        echo "The integration did not become ready. Inspect: docker compose logs integration" >&2
-        exit 1
-    fi
-    if [ $((attempt % 5)) -eq 0 ]; then
-        echo "Still starting; please hang on ..."
-    fi
-    sleep 1
-done
-
-docker compose exec -T integration php bin/bifrost-connect connection:check "$@"
+exec docker compose run --rm php php bin/bifrost-connect connection:check "$@"

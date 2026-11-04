@@ -14,6 +14,7 @@ Dotenv::createImmutable($project)->safeLoad();
 $commands = [
     'connection:check' => 'check-connection',
     'tracezilla:login' => 'tracezilla-login',
+    'tracezilla:seed' => 'seed-tracezilla',
     'catalog:compare' => 'compare-catalogs',
     'catalog:report-shopify-decisions' => 'report-tracezilla-skus-needing-shopify-decision',
     'catalog:create-tracezilla-skus' => 'create-tracezilla-skus',
@@ -28,6 +29,9 @@ $commands = [
     'scenario:create' => 'scenario-create',
     'scenario:run' => 'scenario-run',
 ];
+// A project can leave out optional commands, such as the seed. Only commands
+// whose script is in bin/ are offered.
+$commands = installedCommands($commands);
 
 $command = $argv[1] ?? 'help';
 
@@ -79,4 +83,22 @@ try {
     exit($exitCode);
 } finally {
     $lock?->release();
+}
+
+/**
+ * The commands whose script exists in bin/.
+ *
+ * @param array<string, string> $commands Command name => script name
+ * @return array<string, string>
+ */
+function installedCommands(array $commands): array
+{
+    $installed = [];
+    foreach ($commands as $name => $script) {
+        if (is_file(__DIR__.DIRECTORY_SEPARATOR.$script)) {
+            $installed[$name] = $script;
+        }
+    }
+
+    return $installed;
 }

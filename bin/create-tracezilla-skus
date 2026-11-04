@@ -20,7 +20,7 @@ require dirname(__DIR__).'/vendor/autoload.php';
 Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
 
 try {
-    $options = getopt('', ['dry-run', 'execute', 'confirm', 'limit::', 'json']);
+    $options = getopt('', ['dry-run', 'execute', 'limit::', 'json']);
     $limit = isset($options['limit']) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
     if ($limit === false || $limit < 1) {
         throw new InvalidArgumentException('--limit must be a positive integer.');
@@ -29,7 +29,6 @@ try {
     $mode = WriteMode::fromOptions(
         array_key_exists('dry-run', $options),
         array_key_exists('execute', $options),
-        array_key_exists('confirm', $options),
     );
     if (! $mode->isChosen()) {
         throw new InvalidArgumentException(WriteMode::CHOOSE_A_MODE);
