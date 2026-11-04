@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Tracezilla\Shopify\Shared\WriteMode;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\CommandExecution;
@@ -26,6 +27,7 @@ try {
         'warehouse:',
         'days::',
         'limit::',
+        'dry-run',
         'execute',
         'confirm',
         'json',
@@ -49,13 +51,15 @@ try {
         throw new InvalidArgumentException('--limit must be a positive integer.');
     }
 
-    $execute = array_key_exists('execute', $arguments);
-    $confirm = array_key_exists('confirm', $arguments);
-    if ($execute !== $confirm) {
-        throw new InvalidArgumentException(
-            'Execution requires both --execute and --confirm. Run without either flag for a dry run.'
-        );
+    $mode = WriteMode::fromOptions(
+        array_key_exists('dry-run', $arguments),
+        array_key_exists('execute', $arguments),
+        array_key_exists('confirm', $arguments),
+    );
+    if (! $mode->isChosen()) {
+        throw new InvalidArgumentException(WriteMode::CHOOSE_A_MODE);
     }
+    $execute = $mode->writes();
 
     $displayedCommand = sprintf(
         'php bin/import-individual-orders --customer=%s --warehouse=%d --days=%d --limit=%d',
@@ -66,6 +70,8 @@ try {
     );
     if ($execute) {
         $displayedCommand .= ' --execute --confirm';
+    } else {
+        $displayedCommand .= ' --dry-run';
     }
     if (array_key_exists('json', $arguments)) {
         $displayedCommand .= ' --json';
