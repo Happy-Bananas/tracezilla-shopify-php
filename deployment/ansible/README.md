@@ -1,6 +1,6 @@
 # Deploy with Ansible
 
-This optional playbook uploads the current BifrostConnect project, creates the
+This optional playbook uploads your integration project, creates the
 server `.env` from Ansible Vault, installs production packages, and verifies
 the deployment and service connections.
 

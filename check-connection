@@ -12,7 +12,7 @@ if [ ! -f .env ]; then
     exit 2
 fi
 
-echo "Starting BifrostConnect ..."
+echo "Starting the integration ..."
 docker compose up --build -d integration
 
 echo "Waiting for the integration to become ready ..."
