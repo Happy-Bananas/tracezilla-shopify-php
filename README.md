@@ -1,17 +1,24 @@
-# BifrostConnect
+# tracezilla Shopify integration
 
-Headless, framework-neutral PHP application for integrating external services
-with the tracezilla API. Shopify is the first adapter; WooCommerce support is
-planned. Consultants customize the business rules in PHP and run workflows
-from the console, cron, or another scheduler.
+A [BifrostConnect](https://happy-bananas.github.io/tracezilla-integrations-docs/) template for building an integration between Shopify and
+tracezilla for a tracezilla customer. You write the customer's business rules
+in PHP, test them on your computer, and run the integration on your own server
+from cron.
+
+Don't clone this repository to start a customer project. Create the project
+with the create command described in
+[Getting Started](https://happy-bananas.github.io/tracezilla-integrations-docs/getting-started.html): it gives you a plain folder with no
+connection to this public repository.
 
 ## Documentation
 
-See the [BifrostConnect documentation](https://happy-bananas.github.io/tracezilla-integrations-docs/)
-for installation, configuration, scenario generation, business rules,
-available commands, deployment, and troubleshooting.
+Everything you need is in the [BifrostConnect manual](https://happy-bananas.github.io/tracezilla-integrations-docs/):
 
-Start with [Getting Started](https://happy-bananas.github.io/tracezilla-integrations-docs/getting-started.html).
+- [Getting Started](https://happy-bananas.github.io/tracezilla-integrations-docs/getting-started.html): set up your development
+  environment, create the project, and check the connections.
+- [Shopify](https://happy-bananas.github.io/tracezilla-integrations-docs/shopify/): prerequisites, installation, and the available commands.
+- [Deployment](https://happy-bananas.github.io/tracezilla-integrations-docs/deployment.html) and
+  [Troubleshooting](https://happy-bananas.github.io/tracezilla-integrations-docs/troubleshooting.html).
 
 ## License
 
