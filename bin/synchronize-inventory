@@ -19,7 +19,7 @@ require dirname(__DIR__).'/vendor/autoload.php';
 Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
 
 try {
-    $options = getopt('', ['shopify-location:', 'tracezilla-warehouse:', 'limit::', 'dry-run', 'execute', 'confirm', 'json']);
+    $options = getopt('', ['shopify-location:', 'tracezilla-warehouse:', 'limit::', 'dry-run', 'execute', 'json']);
     $location = trim((string) ($options['shopify-location'] ?? ''));
     $warehouse = filter_var($options['tracezilla-warehouse'] ?? null, FILTER_VALIDATE_INT);
     $limit = array_key_exists('limit', $options) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
@@ -28,7 +28,6 @@ try {
     $mode = WriteMode::fromOptions(
         array_key_exists('dry-run', $options),
         array_key_exists('execute', $options),
-        array_key_exists('confirm', $options),
     );
     if (! $mode->isChosen()) {
         throw new InvalidArgumentException(WriteMode::CHOOSE_A_MODE);
