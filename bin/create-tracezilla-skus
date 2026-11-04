@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Tracezilla\Shopify\Shared\WriteMode;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\SkuCreationRenderer;
@@ -19,16 +20,21 @@ require dirname(__DIR__).'/vendor/autoload.php';
 Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
 
 try {
-    $options = getopt('', ['execute', 'confirm', 'limit::', 'json']);
+    $options = getopt('', ['dry-run', 'execute', 'confirm', 'limit::', 'json']);
     $limit = isset($options['limit']) ? filter_var($options['limit'], FILTER_VALIDATE_INT) : 10;
     if ($limit === false || $limit < 1) {
         throw new InvalidArgumentException('--limit must be a positive integer.');
     }
 
-    $execute = array_key_exists('execute', $options);
-    if ($execute && ! array_key_exists('confirm', $options)) {
-        throw new InvalidArgumentException('Execution requires both --execute and --confirm. Run without them for a dry run.');
+    $mode = WriteMode::fromOptions(
+        array_key_exists('dry-run', $options),
+        array_key_exists('execute', $options),
+        array_key_exists('confirm', $options),
+    );
+    if (! $mode->isChosen()) {
+        throw new InvalidArgumentException(WriteMode::CHOOSE_A_MODE);
     }
+    $execute = $mode->writes();
 
     $configuration = Configuration::fromEnvironment();
     $shopify = new ShopifyCatalogService(new ShopifyClient($configuration), new ShopifyVariantMapper());
