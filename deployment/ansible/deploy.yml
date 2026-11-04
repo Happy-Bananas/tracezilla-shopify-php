@@ -1,5 +1,5 @@
 ---
-- name: Deploy BifrostConnect
+- name: Deploy the integration
   hosts: production
   gather_facts: false
 
