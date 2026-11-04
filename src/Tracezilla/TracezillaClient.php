@@ -44,6 +44,74 @@ final class TracezillaClient
         return $this->send('PUT', $path, ['json' => $payload]);
     }
 
+    /**
+     * Every page of a list, following links.next_page until the last page.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getAll(string $path, array $query = []): array
+    {
+        $records = [];
+        $visitedPages = [];
+
+        while (true) {
+            $page = $this->get($path, $query);
+            $records = array_merge($records, $this->recordsOf($page, $path));
+
+            $nextPageQuery = $this->nextPageQuery($page, $path);
+            if ($nextPageQuery === null) {
+                return $records;
+            }
+
+            $query = array_merge($query, $nextPageQuery);
+            $pageKey = http_build_query($query);
+            if (isset($visitedPages[$pageKey])) {
+                throw new RuntimeException("tracezilla returned the same page of {$path} repeatedly.");
+            }
+            $visitedPages[$pageKey] = true;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $page
+     * @return list<array<string, mixed>>
+     */
+    private function recordsOf(array $page, string $path): array
+    {
+        if (! isset($page['data'])) {
+            throw new RuntimeException("tracezilla response for {$path} is missing data.");
+        }
+        if (! is_array($page['data'])) {
+            throw new RuntimeException("tracezilla response for {$path} is missing data.");
+        }
+
+        return array_values($page['data']);
+    }
+
+    /**
+     * The query of the next page, or null on the last page.
+     *
+     * @param array<string, mixed> $page
+     * @return array<string, mixed>|null
+     */
+    private function nextPageQuery(array $page, string $path): ?array
+    {
+        if (! isset($page['links']['next_page'])) {
+            return null;
+        }
+        $nextPageUrl = $page['links']['next_page'];
+        if (! is_string($nextPageUrl) || $nextPageUrl === '') {
+            return null;
+        }
+
+        parse_str((string) parse_url($nextPageUrl, PHP_URL_QUERY), $query);
+        if ($query === []) {
+            throw new RuntimeException("tracezilla returned an invalid next-page URL for {$path}.");
+        }
+
+        return $query;
+    }
+
     private function send(string $method, string $path, array $options): array
     {
         $token = $this->tokens->accessToken();

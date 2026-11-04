@@ -14,6 +14,7 @@ Dotenv::createImmutable($project)->safeLoad();
 $commands = [
     'connection:check' => 'check-connection',
     'tracezilla:login' => 'tracezilla-login',
+    'tracezilla:seed' => 'seed-tracezilla',
     'catalog:compare' => 'compare-catalogs',
     'catalog:report-shopify-decisions' => 'report-tracezilla-skus-needing-shopify-decision',
     'catalog:create-tracezilla-skus' => 'create-tracezilla-skus',
