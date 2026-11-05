@@ -12,7 +12,9 @@ use Tracezilla\Shopify\Shopify\ShopifyLocationService;
 use Tracezilla\Shopify\Workflows\ListShopifyLocations;
 
 require dirname(__DIR__).'/vendor/autoload.php';
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 try {
     $options = getopt('', ['json']);

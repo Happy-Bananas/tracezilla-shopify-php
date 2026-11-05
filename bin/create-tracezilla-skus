@@ -3,7 +3,10 @@
 
 declare(strict_types=1);
 
-use Tracezilla\Shopify\Shared\WriteMode;
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
+use Bifrost\Core\WriteMode;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\SkuCreationRenderer;
@@ -13,11 +16,12 @@ use Tracezilla\Shopify\Shopify\ShopifyClient;
 use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyVariantToTracezillaSkuMapper;
 use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaSkuMapper;
 use Tracezilla\Shopify\Tracezilla\TracezillaCatalogService;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 use Tracezilla\Shopify\Workflows\CreateTracezillaSkus;
 
 require dirname(__DIR__).'/vendor/autoload.php';
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 try {
     $options = getopt('', ['dry-run', 'execute', 'limit::', 'json']);
@@ -36,8 +40,10 @@ try {
     $execute = $mode->writes();
 
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $shopify = new ShopifyCatalogService(new ShopifyClient($configuration), new ShopifyVariantMapper());
-    $tracezilla = new TracezillaCatalogService(new TracezillaClient($configuration), new TracezillaSkuMapper());
+    $tracezilla = new TracezillaCatalogService($tracezillaClient, new TracezillaSkuMapper());
     $result = (new CreateTracezillaSkus(
         $shopify,
         $tracezilla,

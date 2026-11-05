@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tracezilla\Shopify\Deployment;
 
+use Bifrost\Core\Lock\FileIntegrationLock;
 use RuntimeException;
 use Throwable;
-use Tracezilla\Shopify\Lock\FileIntegrationLock;
 use Tracezilla\Shopify\Retry\FileRetryRepository;
 
 final class DeploymentChecker

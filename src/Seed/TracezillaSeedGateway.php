@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tracezilla\Shopify\Seed;
 
+use Bifrost\Core\Tracezilla\Client;
+use Bifrost\Core\Tracezilla\SkuCreator;
 use RuntimeException;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
-use Tracezilla\Shopify\Tracezilla\SkuCreator;
 
 /**
  * The seed's access to tracezilla: it looks up existing records and creates
@@ -14,7 +14,7 @@ use Tracezilla\Shopify\Tracezilla\SkuCreator;
  */
 final readonly class TracezillaSeedGateway implements SeedGateway
 {
-    public function __construct(private TracezillaClient $client)
+    public function __construct(private Client $client)
     {
     }
 

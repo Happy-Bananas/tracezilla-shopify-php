@@ -3,6 +3,9 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\CommandExecution;
@@ -12,11 +15,12 @@ use Tracezilla\Shopify\Shopify\ShopifyCatalogService;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
 use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaSkuMapper;
 use Tracezilla\Shopify\Tracezilla\TracezillaCatalogService;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 use Tracezilla\Shopify\Workflows\CompareCatalogs;
 
 require dirname(__DIR__).'/vendor/autoload.php';
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 try {
     $options = getopt('', ['limit::', 'json']);
@@ -26,9 +30,11 @@ try {
     }
 
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $workflow = new CompareCatalogs(
         new ShopifyCatalogService(new ShopifyClient($configuration), new ShopifyVariantMapper()),
-        new TracezillaCatalogService(new TracezillaClient($configuration), new TracezillaSkuMapper()),
+        new TracezillaCatalogService($tracezillaClient, new TracezillaSkuMapper()),
     );
     $result = $workflow->run($limit);
 

@@ -3,22 +3,28 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Connection\ConnectionChecker;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 
 $project = dirname(__DIR__);
 require $project.'/vendor/autoload.php';
-Dotenv::createImmutable($project)->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable($project)->safeLoad();
 
 try {
     $options = getopt('', ['json']);
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $result = (new ConnectionChecker(
         new ShopifyClient($configuration),
-        new TracezillaClient($configuration),
+        $tracezillaClient,
     ))->check();
 
     if (array_key_exists('json', $options)) {

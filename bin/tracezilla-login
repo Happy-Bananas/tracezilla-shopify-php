@@ -3,13 +3,15 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
 use Dotenv\Dotenv;
-use Tracezilla\Shopify\Configuration;
-use Tracezilla\Shopify\Tracezilla\TokenProvider;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 // Exchanges a tracezilla username and password for OAuth tokens once. The
 // password is not stored; later runs renew the token with the refresh token.
@@ -31,9 +33,9 @@ function prompt(string $label, bool $hidden = false): string
 }
 
 try {
-    $configuration = Configuration::fromEnvironment();
+    $configuration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
 
-    echo "Log in to tracezilla team [{$configuration->tracezillaTeamSlug}]\n";
+    echo "Log in to tracezilla team [{$configuration->teamSlug}]\n";
     $username = prompt('Username (email): ');
     $password = prompt('Password: ', hidden: true);
     if ($username === '' || $password === '') {
@@ -46,6 +48,6 @@ try {
     exit(1);
 }
 
-echo "Logged in. Tokens saved to {$configuration->tracezillaTokenFile}\n";
+echo "Logged in. Tokens saved to {$configuration->tokenFile}\n";
 echo 'The access token expires '.$tokens->expiresAt->format('Y-m-d').' and is renewed automatically '
     .TokenProvider::RENEW_WITHIN_DAYS." days before that by any integration command.\n";

@@ -3,23 +3,27 @@
 
 declare(strict_types=1);
 
-use Tracezilla\Shopify\Shared\WriteMode;
+use Bifrost\Core\RuntimeDirectory;
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
+use Bifrost\Core\WriteMode;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Output\CommandExecution;
 use Tracezilla\Shopify\Output\IndividualOrderImportRenderer;
 use Tracezilla\Shopify\Retry\FileRetryRepository;
-use Tracezilla\Shopify\RuntimeDirectory;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
 use Tracezilla\Shopify\Shopify\ShopifyOrderService;
 use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyOrderToTracezillaSalesOrderMapper;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 use Tracezilla\Shopify\Tracezilla\TracezillaSalesOrderService;
 use Tracezilla\Shopify\Workflows\ImportIndividualOrders;
 use Tracezilla\Shopify\Workflows\ImportIndividualOrdersOptions;
 
 require dirname(__DIR__).'/vendor/autoload.php';
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 try {
     $arguments = getopt('', [
@@ -77,9 +81,11 @@ try {
     $execution = new CommandExecution($displayedCommand, $execute ? 'execute' : 'dry_run');
 
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $result = (new ImportIndividualOrders(
         new ShopifyOrderService(new ShopifyClient($configuration)),
-        new TracezillaSalesOrderService(new TracezillaClient($configuration)),
+        new TracezillaSalesOrderService($tracezillaClient),
         new ShopifyOrderToTracezillaSalesOrderMapper(),
         new FileRetryRepository(RuntimeDirectory::resolve(dirname(__DIR__))),
     ))->run(new ImportIndividualOrdersOptions(
