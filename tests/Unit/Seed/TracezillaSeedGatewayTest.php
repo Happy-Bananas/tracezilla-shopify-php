@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Seed;
 
+use Bifrost\Core\Tracezilla\Client;
+use Bifrost\Core\Tracezilla\OAuthTokens;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TokenStore;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
 use DateTimeImmutable;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Handler\MockHandler;
@@ -12,12 +17,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Seed\TracezillaSeedGateway;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
-use Tracezilla\Shopify\Tracezilla\OAuthTokens;
-use Tracezilla\Shopify\Tracezilla\TokenProvider;
-use Tracezilla\Shopify\Tracezilla\TokenStore;
 
 final class TracezillaSeedGatewayTest extends TestCase
 {
@@ -103,11 +103,8 @@ final class TracezillaSeedGatewayTest extends TestCase
         $stack = HandlerStack::create($this->api);
         $stack->push(Middleware::history($this->history));
 
-        return new TracezillaSeedGateway(new TracezillaClient(
-            new Configuration(
-                'example.myshopify.com', 'shopify-id', 'shopify-secret', 'read_products', '2025-10',
-                'https://tracezilla.test', 'team', 'id', 'secret', $store->path(), 5, 5,
-            ),
+        return new TracezillaSeedGateway(new Client(
+            new TracezillaConfiguration('https://tracezilla.test', 'team', 'id', 'secret', $store->path(), 5, 5),
             new TokenProvider(new HttpClient(['handler' => HandlerStack::create(new MockHandler())]), $store, 'id', 'secret'),
             new HttpClient(['handler' => $stack, 'base_uri' => 'https://tracezilla.test/api/v1/team/']),
         ));

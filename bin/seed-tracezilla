@@ -3,19 +3,21 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Tracezilla\Client;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
+use Bifrost\Core\WriteMode;
 use Dotenv\Dotenv;
-use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Seed\SeedDefinition;
 use Tracezilla\Shopify\Seed\Seeder;
 use Tracezilla\Shopify\Seed\SeedResult;
 use Tracezilla\Shopify\Seed\TracezillaSeedGateway;
-use Tracezilla\Shopify\Shared\WriteMode;
-use Tracezilla\Shopify\Tracezilla\TokenProvider;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 $usage = <<<'TEXT'
     Usage: php bin/bifrost-connect tracezilla:seed [<seed-file>] (--dry-run | --execute)
@@ -77,11 +79,11 @@ if (count($files) === 1) {
 
 try {
     $definition = SeedDefinition::fromFile($seedFile);
-    $configuration = Configuration::fromEnvironment();
-    printHeading($execute, $configuration->tracezillaTeamSlug);
+    $configuration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    printHeading($execute, $configuration->teamSlug);
 
     $tokens = TokenProvider::fromConfiguration($configuration);
-    $client = new TracezillaClient($configuration, $tokens);
+    $client = new Client($configuration, $tokens);
     $seeder = new Seeder(new TracezillaSeedGateway($client), ownCompanyName(), $tokens->userId());
     $result = $seeder->run($definition, $execute);
 } catch (Throwable $exception) {
@@ -108,11 +110,7 @@ function printHeading(bool $execute, string $teamSlug): void
 /** The own company's name from .env, or null if it is not set. */
 function ownCompanyName(): ?string
 {
-    // Dotenv puts the values of .env into $_ENV, not into getenv().
-    $name = '';
-    if (isset($_ENV['TRACEZILLA_OWN_COMPANY'])) {
-        $name = trim((string) $_ENV['TRACEZILLA_OWN_COMPANY']);
-    }
+    $name = (string) getenv('TRACEZILLA_OWN_COMPANY');
     if ($name === '') {
         return null;
     }

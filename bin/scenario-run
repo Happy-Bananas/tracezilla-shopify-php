@@ -3,24 +3,30 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
-use Tracezilla\Shopify\Scenarios\ScenarioRunner;
 use Tracezilla\Shopify\Scenarios\ScenarioCommandArguments;
+use Tracezilla\Shopify\Scenarios\ScenarioRunner;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 
 $project = dirname(__DIR__);
 require $project.'/vendor/autoload.php';
-Dotenv::createImmutable($project)->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable($project)->safeLoad();
 
 try {
     $arguments = ScenarioCommandArguments::parse(array_slice($argv, 1));
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $result = (new ScenarioRunner(
         $project,
         new ShopifyClient($configuration),
-        new TracezillaClient($configuration),
+        $tracezillaClient,
     ))->run($arguments['slug'], $arguments['platform']);
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
     exit(0);

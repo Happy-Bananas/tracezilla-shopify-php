@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tracezilla\Shopify\Tracezilla;
 
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
 use RuntimeException;
 use Tracezilla\Shopify\Contracts\TracezillaSalesOrderGateway;
 

@@ -6,6 +6,10 @@ namespace Tracezilla\Shopify;
 
 use InvalidArgumentException;
 
+/**
+ * The Shopify settings from .env. The tracezilla settings are read by
+ * bifrost-core's TracezillaConfiguration.
+ */
 final readonly class Configuration
 {
     public function __construct(
@@ -14,11 +18,6 @@ final readonly class Configuration
         public string $shopifyClientSecret,
         public string $shopifyScope,
         public string $shopifyApiVersion,
-        public string $tracezillaBaseUrl,
-        public string $tracezillaTeamSlug,
-        public string $tracezillaClientId,
-        public string $tracezillaClientSecret,
-        public string $tracezillaTokenFile,
         public int $timeout,
         public int $connectTimeout,
     ) {}
@@ -31,11 +30,6 @@ final readonly class Configuration
             shopifyClientSecret: self::required('SHOPIFY_CLIENT_SECRET'),
             shopifyScope: self::required('SHOPIFY_SCOPE'),
             shopifyApiVersion: self::required('SHOPIFY_API_VERSION'),
-            tracezillaBaseUrl: rtrim(self::required('TRACEZILLA_BASE_URL'), '/'),
-            tracezillaTeamSlug: self::required('TRACEZILLA_TEAM_SLUG'),
-            tracezillaClientId: self::required('TRACEZILLA_CLIENT_ID'),
-            tracezillaClientSecret: self::required('TRACEZILLA_CLIENT_SECRET'),
-            tracezillaTokenFile: self::tokenFile(),
             timeout: self::positiveInteger('HTTP_TIMEOUT'),
             connectTimeout: self::positiveInteger('HTTP_CONNECT_TIMEOUT'),
         );
@@ -50,21 +44,6 @@ final readonly class Configuration
         }
 
         return trim($value);
-    }
-
-    /**
-     * The OAuth tokens are stored in the runtime directory unless
-     * TRACEZILLA_TOKEN_FILE names another file.
-     */
-    private static function tokenFile(): string
-    {
-        $project = dirname(__DIR__);
-        $configured = trim((string) ($_ENV['TRACEZILLA_TOKEN_FILE'] ?? getenv('TRACEZILLA_TOKEN_FILE')));
-        if ($configured === '') {
-            return RuntimeDirectory::resolve($project).'/tracezilla-token.json';
-        }
-
-        return str_starts_with($configured, '/') ? $configured : $project.'/'.$configured;
     }
 
     private static function positiveInteger(string $key): int

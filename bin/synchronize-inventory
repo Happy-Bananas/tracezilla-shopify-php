@@ -3,20 +3,24 @@
 
 declare(strict_types=1);
 
-use Tracezilla\Shopify\Shared\WriteMode;
+use Bifrost\Core\Tracezilla\Client as TracezillaClient;
+use Bifrost\Core\Tracezilla\TokenProvider;
+use Bifrost\Core\Tracezilla\TracezillaConfiguration;
+use Bifrost\Core\WriteMode;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Shopify\Mappers\ShopifyInventoryItemMapper;
 use Tracezilla\Shopify\Shopify\ShopifyClient;
 use Tracezilla\Shopify\Shopify\ShopifyInventoryService;
 use Tracezilla\Shopify\Tracezilla\Mappers\TracezillaInventoryMapper;
-use Tracezilla\Shopify\Tracezilla\TracezillaClient;
 use Tracezilla\Shopify\Tracezilla\TracezillaInventoryService;
 use Tracezilla\Shopify\Workflows\SynchronizeInventory;
 use Tracezilla\Shopify\Workflows\TracezillaInventoryToShopifyQuantityMapper;
 
 require dirname(__DIR__).'/vendor/autoload.php';
-Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+// createUnsafeImmutable also puts the values into getenv(), which the
+// settings classes read. Without Docker that is the only way they arrive.
+Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
 
 try {
     $options = getopt('', ['shopify-location:', 'tracezilla-warehouse:', 'limit::', 'dry-run', 'execute', 'json']);
@@ -35,8 +39,10 @@ try {
     $execute = $mode->writes();
 
     $configuration = Configuration::fromEnvironment();
+    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
+    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
     $result = (new SynchronizeInventory(
-        new TracezillaInventoryService(new TracezillaClient($configuration), new TracezillaInventoryMapper),
+        new TracezillaInventoryService($tracezillaClient, new TracezillaInventoryMapper),
         new ShopifyInventoryService(new ShopifyClient($configuration), new ShopifyInventoryItemMapper),
         new TracezillaInventoryToShopifyQuantityMapper,
     ))->run($location, (int) $warehouse, ! $execute, (int) $limit);

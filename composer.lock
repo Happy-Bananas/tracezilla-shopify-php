@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8771229c3d1f1cca6bf51ca8354ad901",
+    "content-hash": "8d1d9916f764f1fd2a538e647e864989",
     "packages": [
         {
             "name": "graham-campbell/result-type",
@@ -398,6 +398,53 @@
                 }
             ],
             "time": "2026-07-16T22:23:49+00:00"
+        },
+        {
+            "name": "happy-bananas/bifrost-core",
+            "version": "v0.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Happy-Bananas/bifrost-core.git",
+                "reference": "c0f5fb0eaf3a0a6eef0ba7fd6ab2af99f2cca29d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Happy-Bananas/bifrost-core/zipball/c0f5fb0eaf3a0a6eef0ba7fd6ab2af99f2cca29d",
+                "reference": "c0f5fb0eaf3a0a6eef0ba7fd6ab2af99f2cca29d",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.10",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^12.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Bifrost\\Core\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "The shared core of BifrostConnect integrations between tracezilla and external services.",
+            "support": {
+                "source": "https://github.com/Happy-Bananas/bifrost-core/tree/v0.2.0",
+                "issues": "https://github.com/Happy-Bananas/bifrost-core/issues"
+            },
+            "time": "2026-11-05T11:11:55+00:00"
         },
         {
             "name": "phpoption/phpoption",
@@ -2854,5 +2901,5 @@
         "php": "^8.3"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.11.0"
 }
