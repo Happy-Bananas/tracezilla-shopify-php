@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Lock\RunLock;
 use Bifrost\Core\Tracezilla\Client as TracezillaClient;
 use Bifrost\Core\Tracezilla\TokenProvider;
 use Bifrost\Core\Tracezilla\TracezillaConfiguration;
@@ -21,6 +22,8 @@ require dirname(__DIR__).'/vendor/autoload.php';
 // createUnsafeImmutable also puts the values into getenv(), which the
 // settings classes read. Without Docker that is the only way they arrive.
 Dotenv::createUnsafeImmutable(dirname(__DIR__))->safeLoad();
+// Before reading anything: no other integration command may run meanwhile.
+RunLock::takeOrExit(dirname(__DIR__), 'catalog:report-shopify-decisions');
 
 try {
     $options = getopt('', ['limit::', 'json']);
