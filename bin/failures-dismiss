@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Bifrost\Core\Lock\RunLock;
 use Bifrost\Core\RuntimeDirectory;
 use Dotenv\Dotenv;
 use Tracezilla\Shopify\Retry\FileRetryRepository;
@@ -13,6 +14,8 @@ require $project.'/vendor/autoload.php';
 // createUnsafeImmutable also puts the values into getenv(), which the
 // settings classes read. Without Docker that is the only way they arrive.
 Dotenv::createUnsafeImmutable($project)->safeLoad();
+// Before reading anything: no other integration command may run meanwhile.
+RunLock::takeOrExit($project, 'failures:dismiss');
 
 try {
     $arguments = getopt('', ['task:', 'reason:']);

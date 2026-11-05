@@ -3,15 +3,11 @@
 
 declare(strict_types=1);
 
-use Bifrost\Core\Lock\FileIntegrationLock;
-use Bifrost\Core\RuntimeDirectory;
-use Dotenv\Dotenv;
-
-$project = dirname(__DIR__);
-require $project.'/vendor/autoload.php';
-// createUnsafeImmutable also puts the values into getenv(), which the
-// settings classes read. Without Docker that is the only way they arrive.
-Dotenv::createUnsafeImmutable($project)->safeLoad();
+// The single entry point: runs one of the commands in bin/. Each command that
+// must not overlap with another takes the integration's run lock itself
+// (Bifrost\Core\Lock\RunLock), so it is protected however it is started.
+// Each command loads .env itself, so this file needs neither .env nor the
+// PHP packages.
 
 $commands = [
     'connection:check' => 'check-connection',
@@ -61,31 +57,8 @@ $arguments = array_slice($argv, 2);
 $parts = array_merge([PHP_BINARY, $script], $arguments);
 $shellCommand = implode(' ', array_map('escapeshellarg', $parts));
 
-$unlockedCommands = ['connection:check', 'tracezilla:login', 'deployment:check', 'failures:list', 'scenario:create'];
-$lock = null;
-if (! in_array($command, $unlockedCommands, true)) {
-    $locks = new FileIntegrationLock(RuntimeDirectory::resolve($project));
-    $lock = $locks->acquire('integration', ['command' => $command]);
-    if ($lock === null) {
-        $metadata = $locks->metadata('integration');
-        fwrite(STDERR, "Another integration command is already running.\n");
-        if (is_string($metadata['command'] ?? null)) {
-            fwrite(STDERR, "Command: {$metadata['command']}\n");
-        }
-        if (is_string($metadata['acquired_at'] ?? null)) {
-            fwrite(STDERR, "Started: {$metadata['acquired_at']}\n");
-        }
-        fwrite(STDERR, "This invocation was skipped safely; the next reconciliation can retry.\n");
-        exit(75);
-    }
-}
-
-try {
-    passthru($shellCommand, $exitCode);
-    exit($exitCode);
-} finally {
-    $lock?->release();
-}
+passthru($shellCommand, $exitCode);
+exit($exitCode);
 
 /**
  * The commands whose script exists in bin/.
