@@ -72,8 +72,8 @@ final class TracezillaServicesTest extends TestCase
         $store->save(new OAuthTokens('access', 'refresh', new DateTimeImmutable('+300 days')));
 
         return new TracezillaClient(
-            new TracezillaConfiguration('https://tracezilla.test', 'team', 'id', 'secret', $store->path(), 5, 5),
-            new TokenProvider(new HttpClient(['handler' => HandlerStack::create(new MockHandler())]), $store, 'id', 'secret'),
+            new TracezillaConfiguration('https://tracezilla.test', 'team', 'id', 'secret', 'api-user', 'api-password', $store->path(), 5, 5),
+            new TokenProvider(new HttpClient(['handler' => HandlerStack::create(new MockHandler())]), $store, 'id', 'secret', 'api-user', 'api-password'),
             new HttpClient(['handler' => HandlerStack::create($this->api), 'base_uri' => 'https://tracezilla.test/api/v1/team/']),
         );
     }
