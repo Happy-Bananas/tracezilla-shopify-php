@@ -9,6 +9,14 @@ Changes in the shared code (tracezilla client, login, run lock, seed) are in
 the [bifrost-core changelog](https://github.com/Happy-Bananas/bifrost-core/blob/main/CHANGELOG.md)
 and reach a project with `composer update happy-bananas/bifrost-core`.
 
+## 0.2.1 (2026-11-10)
+
+- `.env.example` has `TRACEZILLA_USERNAME` and `TRACEZILLA_PASSWORD` again.
+  0.2.0 lost them when two changes were merged.
+
+What a project created from 0.2.0 changes: add `TRACEZILLA_USERNAME=` and
+`TRACEZILLA_PASSWORD=` to `.env` and fill them in.
+
 ## 0.2.0 (2026-11-10)
 
 - The integration logs in to tracezilla by itself with the API user in `.env`.
