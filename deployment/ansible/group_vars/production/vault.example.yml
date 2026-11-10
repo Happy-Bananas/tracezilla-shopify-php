@@ -3,3 +3,5 @@ vault_shopify_client_id: replace-me
 vault_shopify_client_secret: replace-me
 vault_tracezilla_client_id: replace-me
 vault_tracezilla_client_secret: replace-me
+vault_tracezilla_username: replace-me@tracezilla.api
+vault_tracezilla_password: replace-me
