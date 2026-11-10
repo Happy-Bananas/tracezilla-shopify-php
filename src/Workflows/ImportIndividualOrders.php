@@ -17,8 +17,18 @@ use Tracezilla\Shopify\Retry\TaskIdentity;
 use Tracezilla\Shopify\Shopify\ShopifyOrderData;
 use Tracezilla\Shopify\Tracezilla\Mappers\ShopifyOrderToTracezillaSalesOrderMapper;
 
+/**
+ * Imports Shopify orders as tracezilla sales orders: the orders created in the
+ * last --days, and older orders whose earlier import failed and is due for a
+ * retry. An order whose external reference already exists is skipped.
+ */
 final readonly class ImportIndividualOrders
 {
+    private const WORKFLOW = 'orders:import-individual';
+
+    /** How much of tracezilla's error message is kept in the output and the retry record. */
+    private const MAX_ERROR_LENGTH = 500;
+
     public function __construct(
         private ShopifyOrderReader $shopify,
         private TracezillaSalesOrderGateway $tracezilla,
@@ -31,7 +41,7 @@ final readonly class ImportIndividualOrders
         ?DateTimeImmutable $now = null,
     ): ImportIndividualOrdersResult {
         $now ??= new DateTimeImmutable('now');
-        $orders = $this->shopify->readCreatedSince($now->modify("-{$options->days} days"));
+        $orders = $this->ordersToImport($options, $now);
         $selected = array_slice($orders, 0, $options->limit);
         $result = new ImportIndividualOrdersResult(
             sourceCount: count($orders),
@@ -138,31 +148,86 @@ final readonly class ImportIndividualOrders
                     'created',
                     'Created one tracezilla sales order.',
                 );
-            } catch (Throwable) {
+            } catch (Throwable $exception) {
+                $message = $this->failureMessage($exception);
                 $this->retries?->recordFailure(
                     $this->retryIdentity($order),
-                    new IntegrationFailure(
-                        'tracezilla_order_creation_failed',
-                        FailureCategory::Unexpected,
-                        'tracezilla rejected the sales-order creation request.',
-                    ),
+                    new IntegrationFailure('tracezilla_order_creation_failed', FailureCategory::Unexpected, $message),
                     $now,
                 );
-                $result->add(
-                    $order->name,
-                    $mapped->externalReference,
-                    'failed',
-                    'tracezilla rejected the sales-order creation request.',
-                );
+                $result->add($order->name, $mapped->externalReference, 'failed', $message);
             }
         }
 
         return $result;
     }
 
+    /**
+     * Older orders whose retry is due come first, then the orders created in
+     * the last --days. Without the older ones, a failure that outlives the
+     * --days window would never be retried.
+     *
+     * @return list<ShopifyOrderData>
+     */
+    private function ordersToImport(ImportIndividualOrdersOptions $options, DateTimeImmutable $now): array
+    {
+        $recentOrders = $this->shopify->readCreatedSince($now->modify("-{$options->days} days"));
+        $olderOrderIds = $this->dueRetryOrderIds($recentOrders, $now, $options->limit);
+        if ($olderOrderIds === []) {
+            return $recentOrders;
+        }
+
+        $olderOrders = $this->shopify->readByLegacyIds($olderOrderIds);
+
+        return array_merge($olderOrders, $recentOrders);
+    }
+
+    /**
+     * The Shopify IDs of orders whose retry is due and that are not among the
+     * recent orders already.
+     *
+     * @param list<ShopifyOrderData> $recentOrders
+     * @return list<string>
+     */
+    private function dueRetryOrderIds(array $recentOrders, DateTimeImmutable $now, int $limit): array
+    {
+        if ($this->retries === null) {
+            return [];
+        }
+
+        $recentIds = [];
+        foreach ($recentOrders as $order) {
+            $recentIds[$order->legacyId] = true;
+        }
+
+        $ids = [];
+        foreach ($this->retries->due($now, $limit) as $task) {
+            if ($task->identity->workflow !== self::WORKFLOW) {
+                continue;
+            }
+            if (isset($recentIds[$task->identity->externalId])) {
+                continue;
+            }
+            $ids[] = $task->identity->externalId;
+        }
+
+        return $ids;
+    }
+
+    /** What went wrong, in tracezilla's own words, for the output and the retry record. */
+    private function failureMessage(Throwable $exception): string
+    {
+        $message = trim($exception->getMessage());
+        if ($message === '') {
+            return 'tracezilla rejected the sales order without an explanation.';
+        }
+
+        return mb_substr($message, 0, self::MAX_ERROR_LENGTH);
+    }
+
     private function retryIdentity(ShopifyOrderData $order): TaskIdentity
     {
-        return new TaskIdentity('orders:import-individual', 'shopify', $order->legacyId);
+        return new TaskIdentity(self::WORKFLOW, 'shopify', $order->legacyId);
     }
 
     private function resolveRetry(ShopifyOrderData $order, DateTimeImmutable $now): void

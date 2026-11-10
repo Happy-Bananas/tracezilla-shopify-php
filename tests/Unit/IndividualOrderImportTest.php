@@ -89,6 +89,51 @@ final class IndividualOrderImportTest extends TestCase
         self::assertSame('tracezilla_order_creation_failed', $retries->recordedFailure?->code);
     }
 
+    public function test_a_rejected_write_keeps_tracezillas_own_explanation(): void
+    {
+        $gateway = new FakeSalesOrderGateway([], ['SHP1001']);
+        $retries = new RecordingRetryRepository();
+
+        $result = $this->workflow(new FakeIndividualOrderReader([self::order('1001')]), $gateway, $retries)->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        $explanation = FakeSalesOrderGateway::REJECTION;
+        self::assertSame($explanation, $retries->recordedFailure?->message);
+        self::assertSame($explanation, $result->toArray()['items'][0]['message']);
+    }
+
+    public function test_an_older_order_whose_retry_is_due_is_imported(): void
+    {
+        $reader = new FakeIndividualOrderReader([self::order('1002')], [self::order('900')]);
+        $gateway = new FakeSalesOrderGateway([]);
+        $retries = new RecordingRetryRepository();
+        $retries->dueTasks = [RecordingRetryRepository::task('900')];
+
+        $this->workflow($reader, $gateway, $retries)->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, days: 3, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertSame(['900'], $reader->requestedIds);
+        self::assertSame(['SHP900', 'SHP1002'], $gateway->createdReferences);
+    }
+
+    public function test_a_due_retry_among_the_recent_orders_is_not_read_again(): void
+    {
+        $reader = new FakeIndividualOrderReader([self::order('1002')]);
+        $retries = new RecordingRetryRepository();
+        $retries->dueTasks = [RecordingRetryRepository::task('1002')];
+
+        $this->workflow($reader, new FakeSalesOrderGateway([]), $retries)->run(
+            new ImportIndividualOrdersOptions('Webshop customer', 2, dryRun: false, limit: 10),
+            new DateTimeImmutable('2026-08-18T12:00:00Z'),
+        );
+
+        self::assertNull($reader->requestedIds);
+    }
+
     public function test_execution_sends_invalid_business_data_to_attention(): void
     {
         $retries = new RecordingRetryRepository();
@@ -278,6 +323,8 @@ final class RecordingRetryRepository implements RetryRepository
     public ?IntegrationFailure $recordedFailure = null;
     public ?RetryTask $existing = null;
     public ?RetryTask $resolved = null;
+    /** @var list<RetryTask> */
+    public array $dueTasks = [];
 
     public function recordFailure(TaskIdentity $identity, IntegrationFailure $failure, DateTimeImmutable $now): RetryTask
     {
@@ -286,7 +333,7 @@ final class RecordingRetryRepository implements RetryRepository
         return self::task($identity->externalId, $failure, $now);
     }
 
-    public function due(DateTimeImmutable $now, int $limit): array { return []; }
+    public function due(DateTimeImmutable $now, int $limit): array { return $this->dueTasks; }
     public function pending(): array { return $this->existing === null ? [] : [$this->existing]; }
     public function attention(): array { return []; }
 
@@ -321,19 +368,38 @@ final class RecordingRetryRepository implements RetryRepository
 final class FakeIndividualOrderReader implements ShopifyOrderReader
 {
     public ?DateTimeImmutable $createdSince = null;
+    /** @var null|list<string> The IDs asked for with readByLegacyIds, or null if never asked */
+    public ?array $requestedIds = null;
 
-    /** @param list<ShopifyOrderData> $orders */
-    public function __construct(private readonly array $orders) {}
+    /**
+     * @param list<ShopifyOrderData> $orders Created in the last --days
+     * @param list<ShopifyOrderData> $olderOrders Only found by ID
+     */
+    public function __construct(private readonly array $orders, private readonly array $olderOrders = []) {}
 
     public function readCreatedSince(DateTimeImmutable $createdSince): array
     {
         $this->createdSince = $createdSince;
         return $this->orders;
     }
+
+    public function readByLegacyIds(array $legacyIds): array
+    {
+        $this->requestedIds = $legacyIds;
+        $found = [];
+        foreach ($this->olderOrders as $order) {
+            if (in_array($order->legacyId, $legacyIds, true)) {
+                $found[] = $order;
+            }
+        }
+        return $found;
+    }
 }
 
 final class FakeSalesOrderGateway implements TracezillaSalesOrderGateway
 {
+    public const REJECTION = 'PUT /orders/sales failed with HTTP 422: {"message":"The customer is blocked."}';
+
     public int $contextReads = 0;
     public int $writeCount = 0;
     public array $createdReferences = [];
@@ -359,7 +425,7 @@ final class FakeSalesOrderGateway implements TracezillaSalesOrderGateway
     {
         $this->writeCount++;
         if (in_array($order->externalReference, $this->rejectedReferences, true)) {
-            throw new RuntimeException('Rejected for test');
+            throw new RuntimeException(self::REJECTION);
         }
         $this->createdReferences[] = $order->externalReference;
         return ['data' => ['ext_ref' => $order->externalReference]];
