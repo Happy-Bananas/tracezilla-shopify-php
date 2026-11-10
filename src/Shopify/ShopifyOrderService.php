@@ -14,9 +14,33 @@ final readonly class ShopifyOrderService implements ShopifyOrderReader
 
     public function readCreatedSince(DateTimeImmutable $createdSince): array
     {
+        return $this->readMatching("created_at:>='{$createdSince->format(DATE_ATOM)}'");
+    }
+
+    public function readByLegacyIds(array $legacyIds): array
+    {
+        if ($legacyIds === []) {
+            return [];
+        }
+
+        // Shopify's order search matches the numeric ID with id:<number>.
+        $terms = [];
+        foreach ($legacyIds as $legacyId) {
+            $terms[] = 'id:'.$legacyId;
+        }
+
+        return $this->readMatching(implode(' OR ', $terms));
+    }
+
+    /**
+     * Every order that matches a Shopify search filter, 100 at a time.
+     *
+     * @return list<ShopifyOrderData>
+     */
+    private function readMatching(string $filter): array
+    {
         $orders = [];
         $after = null;
-        $filter = "created_at:>='{$createdSince->format(DATE_ATOM)}'";
 
         do {
             $response = $this->client->graphql(GetOrders::QUERY, [

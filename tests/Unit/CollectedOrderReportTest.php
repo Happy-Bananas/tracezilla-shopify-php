@@ -121,4 +121,9 @@ final class FakeShopifyOrderReader implements ShopifyOrderReader
         $this->createdSince = $createdSince;
         return $this->orders;
     }
+
+    public function readByLegacyIds(array $legacyIds): array
+    {
+        return [];
+    }
 }
