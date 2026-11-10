@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 $commands = [
     'connection:check' => 'check-connection',
-    'tracezilla:login' => 'tracezilla-login',
     'tracezilla:seed' => 'seed-tracezilla',
     'catalog:compare' => 'compare-catalogs',
     'catalog:report-shopify-decisions' => 'report-tracezilla-skus-needing-shopify-decision',
