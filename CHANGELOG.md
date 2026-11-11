@@ -9,6 +9,13 @@ Changes in the shared code (tracezilla client, login, run lock, seed) are in
 the [bifrost-core changelog](https://github.com/Happy-Bananas/bifrost-core/blob/main/CHANGELOG.md)
 and reach a project with `composer update happy-bananas/bifrost-core`.
 
+## Unreleased
+
+- Removes `create-shopify-project`. Create projects with the shared
+  `create-project` script from the manual.
+
+What a project changes: nothing. It may delete `create-shopify-project`.
+
 ## 0.2.1 (2026-11-10)
 
 - `.env.example` has `TRACEZILLA_USERNAME` and `TRACEZILLA_PASSWORD` again.
