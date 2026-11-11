@@ -11,10 +11,16 @@ and reach a project with `composer update happy-bananas/bifrost-core`.
 
 ## Unreleased
 
+- `connection:check` always checks both Shopify and tracezilla and reports
+  each one, like the WooCommerce template. Before, it stopped at the first
+  failure. With `--json`, a failed connection has `connected: false` and an
+  `error`, and `tracezilla` names the `team`.
 - Removes `create-shopify-project`. Create projects with the shared
   `create-project` script from the manual.
 
-What a project changes: nothing. It may delete `create-shopify-project`.
+What a project changes: nothing. It may delete `create-shopify-project`, and
+copy `bin/check-connection` and `src/Connection/` from the template to get the
+new check.
 
 ## 0.2.1 (2026-11-10)
 

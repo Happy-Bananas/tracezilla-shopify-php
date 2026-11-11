@@ -3,13 +3,13 @@
 
 declare(strict_types=1);
 
-use Bifrost\Core\Tracezilla\Client as TracezillaClient;
-use Bifrost\Core\Tracezilla\TokenProvider;
-use Bifrost\Core\Tracezilla\TracezillaConfiguration;
+// Checks the Shopify and tracezilla connections and prints the result.
+// Exit code 0 means both connections work.
+
 use Dotenv\Dotenv;
-use Tracezilla\Shopify\Configuration;
 use Tracezilla\Shopify\Connection\ConnectionChecker;
-use Tracezilla\Shopify\Shopify\ShopifyClient;
+use Tracezilla\Shopify\Connection\LiveShopifyConnection;
+use Tracezilla\Shopify\Connection\LiveTracezillaConnection;
 
 $project = dirname(__DIR__);
 require $project.'/vendor/autoload.php';
@@ -17,28 +17,50 @@ require $project.'/vendor/autoload.php';
 // settings classes read. Without Docker that is the only way they arrive.
 Dotenv::createUnsafeImmutable($project)->safeLoad();
 
-try {
-    $options = getopt('', ['json']);
-    $configuration = Configuration::fromEnvironment();
-    $tracezillaConfiguration = TracezillaConfiguration::fromEnvironment(dirname(__DIR__));
-    $tracezillaClient = new TracezillaClient($tracezillaConfiguration, TokenProvider::fromConfiguration($tracezillaConfiguration));
-    $result = (new ConnectionChecker(
-        new ShopifyClient($configuration),
-        $tracezillaClient,
-    ))->check();
+$checker = new ConnectionChecker(
+    new LiveShopifyConnection(),
+    new LiveTracezillaConnection($project),
+    (string) getenv('TRACEZILLA_TEAM_SLUG'),
+);
+$result = $checker->check();
 
-    if (array_key_exists('json', $options)) {
-        echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR).PHP_EOL;
-    } else {
-        echo "Connection check passed.\n";
-        echo 'Shopify: '.$result['shopify']['shop_name'];
-        if (is_string($result['shopify']['domain'])) {
-            echo ' ('.$result['shopify']['domain'].')';
-        }
-        echo "\ntracezilla: connected\n";
-    }
+$options = getopt('', ['json']);
+if (array_key_exists('json', $options)) {
+    printJson($result);
+} else {
+    printText($result);
+}
+
+if ($result['status'] === 'ok') {
     exit(0);
-} catch (Throwable $exception) {
-    fwrite(STDERR, 'Connection check failed: '.$exception->getMessage().PHP_EOL);
-    exit(1);
+}
+exit(1);
+
+function printJson(array $result): void
+{
+    echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+}
+
+function printText(array $result): void
+{
+    if ($result['status'] === 'ok') {
+        echo "Connection check passed.\n";
+    } else {
+        echo "Connection check failed.\n";
+    }
+
+    $shopify = $result['shopify'];
+    if ($shopify['connected']) {
+        $domain = $shopify['domain'] ?? 'unknown domain';
+        echo "Shopify:    connected to {$shopify['shop_name']} ({$domain})\n";
+    } else {
+        echo "Shopify:    FAILED - {$shopify['error']}\n";
+    }
+
+    $tracezilla = $result['tracezilla'];
+    if ($tracezilla['connected']) {
+        echo "tracezilla: connected to team {$tracezilla['team']}\n";
+    } else {
+        echo "tracezilla: FAILED - {$tracezilla['error']}\n";
+    }
 }
