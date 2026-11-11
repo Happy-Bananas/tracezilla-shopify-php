@@ -9,7 +9,7 @@ Changes in the shared code (tracezilla client, login, run lock, seed) are in
 the [bifrost-core changelog](https://github.com/Happy-Bananas/bifrost-core/blob/main/CHANGELOG.md)
 and reach a project with `composer update happy-bananas/bifrost-core`.
 
-## Unreleased
+## 0.3.0 (2026-11-11)
 
 - `connection:check` always checks both Shopify and tracezilla and reports
   each one, like the WooCommerce template. Before, it stopped at the first
