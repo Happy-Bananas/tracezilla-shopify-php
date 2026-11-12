@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tracezilla\Shopify;
 
-use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * The Shopify settings from .env. The tracezilla settings are read by
@@ -18,55 +18,67 @@ final readonly class Configuration
         public string $shopifyClientSecret,
         public string $shopifyScope,
         public string $shopifyApiVersion,
-        public int $timeout,
-        public int $connectTimeout,
-    ) {}
+        public float $timeout,
+        public float $connectTimeout,
+    ) {
+    }
 
     public static function fromEnvironment(): self
     {
         return new self(
-            shopifyShopUrl: self::shopDomain(self::required('SHOPIFY_SHOP_URL')),
-            shopifyClientId: self::required('SHOPIFY_CLIENT_ID'),
-            shopifyClientSecret: self::required('SHOPIFY_CLIENT_SECRET'),
-            shopifyScope: self::required('SHOPIFY_SCOPE'),
-            shopifyApiVersion: self::required('SHOPIFY_API_VERSION'),
-            timeout: self::positiveInteger('HTTP_TIMEOUT'),
-            connectTimeout: self::positiveInteger('HTTP_CONNECT_TIMEOUT'),
+            self::shopDomain(),
+            self::required('SHOPIFY_CLIENT_ID'),
+            self::required('SHOPIFY_CLIENT_SECRET'),
+            self::required('SHOPIFY_SCOPE'),
+            self::required('SHOPIFY_API_VERSION'),
+            (float) self::optional('HTTP_TIMEOUT', '30'),
+            (float) self::optional('HTTP_CONNECT_TIMEOUT', '10'),
         );
     }
 
-    private static function required(string $key): string
+    /**
+     * The shop's domain, such as your-store.myshopify.com. An address with
+     * https:// or a trailing slash is accepted, because that is what the
+     * browser shows.
+     */
+    private static function shopDomain(): string
     {
-        $value = $_ENV[$key] ?? getenv($key);
-
-        if (! is_string($value) || trim($value) === '') {
-            throw new InvalidArgumentException("Missing required configuration: {$key}");
+        $url = self::required('SHOPIFY_SHOP_URL');
+        $domain = (string) preg_replace('#^https?://#i', '', $url);
+        $domain = rtrim($domain, '/');
+        if (! self::isShopifyDomain($domain)) {
+            throw new RuntimeException("SHOPIFY_SHOP_URL must look like your-store.myshopify.com: {$url}");
         }
 
-        return trim($value);
+        return $domain;
     }
 
-    private static function positiveInteger(string $key): int
+    private static function isShopifyDomain(string $domain): bool
     {
-        $value = filter_var(self::required($key), FILTER_VALIDATE_INT);
+        if (str_contains($domain, '/')) {
+            return false;
+        }
 
-        if ($value === false || $value < 1) {
-            throw new InvalidArgumentException("{$key} must be a positive integer.");
+        return str_ends_with($domain, '.myshopify.com');
+    }
+
+    private static function required(string $name): string
+    {
+        $value = (string) getenv($name);
+        if ($value === '') {
+            throw new RuntimeException("Missing required environment variable: {$name}");
         }
 
         return $value;
     }
 
-    private static function shopDomain(string $value): string
+    private static function optional(string $name, string $default): string
     {
-        $domain = rtrim((string) preg_replace('#^https?://#i', '', $value), '/');
-
-        if (! str_ends_with($domain, '.myshopify.com') || str_contains($domain, '/')) {
-            throw new InvalidArgumentException(
-                'SHOPIFY_SHOP_URL must look like your-store.myshopify.com.'
-            );
+        $value = (string) getenv($name);
+        if ($value === '') {
+            return $default;
         }
 
-        return $domain;
+        return $value;
     }
 }
