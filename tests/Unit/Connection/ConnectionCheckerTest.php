@@ -29,7 +29,7 @@ final class ConnectionCheckerTest extends TestCase
     public function test_a_shopify_failure_does_not_hide_the_tracezilla_result(): void
     {
         $checker = new ConnectionChecker(
-            FakeShopifyConnection::failingWith('Missing required configuration: SHOPIFY_CLIENT_ID'),
+            FakeShopifyConnection::failingWith('Missing required environment variable: SHOPIFY_CLIENT_ID'),
             FakeTracezillaConnection::answering(['data' => []]),
             'dev-team',
         );
@@ -37,7 +37,7 @@ final class ConnectionCheckerTest extends TestCase
         $result = $checker->check();
 
         self::assertSame('failed', $result['status']);
-        self::assertSame(['connected' => false, 'error' => 'Missing required configuration: SHOPIFY_CLIENT_ID'], $result['shopify']);
+        self::assertSame(['connected' => false, 'error' => 'Missing required environment variable: SHOPIFY_CLIENT_ID'], $result['shopify']);
         self::assertTrue($result['tracezilla']['connected']);
     }
 

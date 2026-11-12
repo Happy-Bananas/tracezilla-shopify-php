@@ -9,6 +9,16 @@ Changes in the shared code (tracezilla client, login, run lock, seed) are in
 the [bifrost-core changelog](https://github.com/Happy-Bananas/bifrost-core/blob/main/CHANGELOG.md)
 and reach a project with `composer update happy-bananas/bifrost-core`.
 
+## Unreleased
+
+- The Shopify settings are read the same way as in the WooCommerce template
+  and bifrost-core: a missing setting reports "Missing required environment
+  variable: NAME", and `HTTP_TIMEOUT` and `HTTP_CONNECT_TIMEOUT` may be left
+  out (30 and 10 seconds).
+
+What a project changes: nothing. It may copy `src/Configuration.php` from the
+template.
+
 ## 0.3.0 (2026-11-11)
 
 - `connection:check` always checks both Shopify and tracezilla and reports
